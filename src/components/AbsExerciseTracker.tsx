@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { Results } from "@mediapipe/pose";
 import {
   AbsExerciseDetector,
   ExerciseState,
   PoseLandmark,
 } from "../lib/pose-detection";
+import ChainlinkEnhancement from "./ChainlinkEnhancement";
+import {
+  submitWorkoutSession,
+  getUserStats,
+  getTimeUntilNextSubmission,
+  subscribeToEvents,
+} from "../lib/contract";
+import { useWallet } from "../contexts/WalletContext";
+import WalletConnectButton from "./WalletConnectButton";
 
 interface SessionStats {
   totalReps: number;
@@ -19,6 +28,7 @@ export default function AbsExerciseTracker() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectorRef = useRef<AbsExerciseDetector | null>(null);
+  const poseDataRef = useRef<unknown[]>([]);
 
   const [isActive, setIsActive] = useState(false);
   const [exerciseState, setExerciseState] = useState<ExerciseState>({
@@ -41,6 +51,68 @@ export default function AbsExerciseTracker() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Wallet context
+  const {
+    isConnected: isWalletConnected,
+    address: walletAddress,
+    signer,
+  } = useWallet();
+
+  // Blockchain state
+  const [isSubmittingToBlockchain, setIsSubmittingToBlockchain] =
+    useState(false);
+  const [blockchainError, setBlockchainError] = useState<string | null>(null);
+  const [submissionCooldown, setSubmissionCooldown] = useState(0);
+  const [enhancedFormScore, setEnhancedFormScore] = useState<number | null>(
+    null,
+  );
+  const [onChainStats, setOnChainStats] = useState<{
+    totalReps: number;
+    averageFormAccuracy: number;
+    bestStreak: number;
+    sessionsCompleted: number;
+    timestamp: number;
+  } | null>(null);
+
+  // Load blockchain data when wallet connects
+  const loadUserBlockchainData = useCallback(async () => {
+    if (!isWalletConnected || !walletAddress) return;
+
+    try {
+      setIsLoading(true);
+      setBlockchainError(null);
+
+      // Load user stats and cooldown
+      const [stats, cooldown] = await Promise.all([
+        getUserStats(walletAddress),
+        getTimeUntilNextSubmission(walletAddress),
+      ]);
+
+      setOnChainStats(stats);
+      setSubmissionCooldown(cooldown);
+
+      // Subscribe to contract events
+      const unsubscribe = subscribeToEvents((event) => {
+        console.log("Blockchain event:", event);
+        if (
+          event.type === "AbsScoreAdded" &&
+          event.user &&
+          event.user.toLowerCase() === walletAddress.toLowerCase()
+        ) {
+          loadUserBlockchainData();
+        }
+      });
+
+      return () => unsubscribe();
+    } catch (err: unknown) {
+      setBlockchainError(
+        (err as Error).message || "Failed to load blockchain data",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isWalletConnected, walletAddress]);
+
   // Initialize pose detection
   const initializePoseDetection = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -51,11 +123,27 @@ export default function AbsExerciseTracker() {
     try {
       detectorRef.current = new AbsExerciseDetector();
 
+      // Clear previous pose data
+      poseDataRef.current = [];
+
       await detectorRef.current.initialize(
         videoRef.current,
         (results: Results) => {
           drawResults(results);
           processExercise(results);
+
+          // Store pose data for Chainlink analysis
+          if (results.poseLandmarks) {
+            poseDataRef.current.push({
+              landmarks: results.poseLandmarks,
+              timestamp: Date.now(),
+            });
+
+            // Keep only last 100 poses to manage memory
+            if (poseDataRef.current.length > 100) {
+              poseDataRef.current = poseDataRef.current.slice(-100);
+            }
+          }
         },
       );
 
@@ -82,8 +170,8 @@ export default function AbsExerciseTracker() {
     // Calculate final session stats
     if (sessionStartTime) {
       const duration = Math.round((Date.now() - sessionStartTime) / 1000);
-      setSessionStats((prev) => ({
-        ...prev,
+      const finalStats = {
+        ...sessionStats,
         sessionDuration: duration,
         totalReps: exerciseState.counter,
         averageFormAccuracy:
@@ -93,7 +181,18 @@ export default function AbsExerciseTracker() {
                   formAccuracyHistory.length,
               )
             : 100,
-      }));
+      };
+
+      setSessionStats(finalStats);
+
+      // Submit to blockchain if connected and has reps
+      if (
+        isWalletConnected &&
+        exerciseState.counter > 0 &&
+        submissionCooldown === 0
+      ) {
+        handleBlockchainSubmission(finalStats);
+      }
     }
   };
 
@@ -203,7 +302,50 @@ export default function AbsExerciseTracker() {
       sessionDuration: 0,
       bestStreak: 0,
     });
+    setEnhancedFormScore(null);
+    poseDataRef.current = [];
   };
+
+  // Handle blockchain submission
+  const handleBlockchainSubmission = async (stats: SessionStats) => {
+    if (!isWalletConnected || submissionCooldown > 0 || !signer) return;
+
+    setIsSubmittingToBlockchain(true);
+    setBlockchainError(null);
+
+    try {
+      await submitWorkoutSession(
+        signer,
+        stats.totalReps,
+        stats.averageFormAccuracy,
+        sessionStats.bestStreak,
+        stats.sessionDuration,
+        poseDataRef.current,
+      );
+
+      // Reload user data after successful submission
+      if (walletAddress) {
+        await loadUserBlockchainData();
+      }
+    } catch (err: unknown) {
+      setBlockchainError(
+        (err as Error).message || "Failed to submit to blockchain",
+      );
+    } finally {
+      setIsSubmittingToBlockchain(false);
+    }
+  };
+
+  const handleEnhancedAnalysis = (score: number) => {
+    setEnhancedFormScore(score);
+  };
+
+  // Load blockchain data when wallet connects
+  useEffect(() => {
+    if (isWalletConnected && walletAddress) {
+      loadUserBlockchainData();
+    }
+  }, [isWalletConnected, walletAddress, loadUserBlockchainData]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -214,31 +356,19 @@ export default function AbsExerciseTracker() {
     };
   }, []);
 
-  // Get form quality color
-  const getFormQualityColor = (accuracy: number) => {
-    if (accuracy >= 90) return "text-green-500";
-    if (accuracy >= 70) return "text-yellow-500";
-    return "text-red-500";
-  };
-
-  // Get status indicator color
-  const getStatusColor = (status: string) => {
-    return status === "up" ? "text-green-500" : "text-blue-500";
-  };
-
   return (
-    <div className="flex flex-col items-center space-y-6 p-6 max-w-4xl mx-auto">
+    <div className="flex flex-col items-center space-y-8 p-6 max-w-4xl mx-auto">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Perfect Abs Tracker
+        <h1 className="text-4xl font-black tracking-tighter uppercase text-black mb-4 border-b-8 border-black pb-2 inline-block">
+          WORKOUT SESSION
         </h1>
-        <p className="text-gray-600">
-          AI-powered form analysis for abs exercises
+        <p className="text-lg font-mono font-bold uppercase text-gray-700">
+          AI-POWERED FORM ANALYSIS ENGINE
         </p>
       </div>
 
       {/* Camera and Canvas */}
-      <div className="relative bg-black rounded-lg overflow-hidden shadow-lg">
+      <div className="abs-camera-container">
         <video
           ref={videoRef}
           className="w-full max-w-2xl"
@@ -256,30 +386,40 @@ export default function AbsExerciseTracker() {
         />
 
         {/* Overlay Stats */}
-        <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white p-3 rounded-lg">
-          <div className="space-y-1 text-sm">
-            <div>
-              Reps:{" "}
-              <span className="font-bold text-xl">{exerciseState.counter}</span>
+        <div className="abs-stats-overlay absolute top-4 left-4">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 bg-cyan-400 border-2 border-white transform rotate-45"></div>
+              <span className="font-bold uppercase">REPS:</span>
+              <span className="abs-rep-counter">{exerciseState.counter}</span>
             </div>
-            <div>
-              Status:{" "}
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 bg-yellow-500 border-2 border-white"></div>
+              <span className="font-bold uppercase">STATUS:</span>
               <span
-                className={`font-semibold ${getStatusColor(exerciseState.status)}`}
+                className={`font-bold uppercase ${exerciseState.status === "up" ? "abs-status-up" : "abs-status-down"}`}
               >
-                {exerciseState.status.toUpperCase()}
+                {exerciseState.status}
               </span>
             </div>
-            <div>
-              Angle:{" "}
-              <span className="font-mono">
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 bg-fuchsia-500 border-2 border-white transform rotate-45"></div>
+              <span className="font-bold uppercase">ANGLE:</span>
+              <span className="font-mono font-bold">
                 {Math.round(exerciseState.angle)}°
               </span>
             </div>
-            <div>
-              Form:{" "}
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 bg-lime-400 border-2 border-white"></div>
+              <span className="font-bold uppercase">FORM:</span>
               <span
-                className={`font-semibold ${getFormQualityColor(exerciseState.formAccuracy)}`}
+                className={`abs-form-score ${
+                  exerciseState.formAccuracy >= 90
+                    ? "abs-form-excellent"
+                    : exerciseState.formAccuracy >= 70
+                      ? "abs-form-good"
+                      : "abs-form-poor"
+                }`}
               >
                 {exerciseState.formAccuracy}%
               </span>
@@ -289,86 +429,208 @@ export default function AbsExerciseTracker() {
 
         {/* Streak Indicator */}
         {currentStreak > 0 && (
-          <div className="absolute top-4 right-4 bg-yellow-500 text-black px-3 py-1 rounded-full font-bold">
-            🔥 {currentStreak} streak!
+          <div className="abs-streak-indicator abs-streak-glow absolute top-4 right-4">
+            <div className="flex items-center space-x-2">
+              <div className="h-6 w-6 bg-red-600 border-2 border-black transform rotate-45"></div>
+              <span className="uppercase">{currentStreak} STREAK!</span>
+            </div>
           </div>
         )}
       </div>
 
+      {/* Wallet Connection */}
+      {!isWalletConnected && (
+        <div className="abs-card-brutal bg-purple-600 text-white text-center">
+          <h3 className="text-lg font-black mb-3 uppercase border-b-4 border-white pb-2">
+            Connect Wallet
+          </h3>
+          <p className="text-sm font-mono mb-4">
+            Connect your wallet to submit workouts to the blockchain and track
+            your progress on the leaderboard.
+          </p>
+          <WalletConnectButton
+            variant="primary"
+            className="bg-white text-purple-600"
+            showWalletSelection={true}
+          />
+        </div>
+      )}
+
+      {/* Wallet Info */}
+      {isWalletConnected && (
+        <div className="abs-card-brutal bg-green-600 text-white">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-black uppercase">WALLET CONNECTED</h3>
+            <div className="h-3 w-3 bg-lime-400 rounded-full animate-pulse"></div>
+          </div>
+          <p className="text-xs font-mono mb-2">
+            {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
+          </p>
+          {submissionCooldown > 0 && (
+            <p className="text-xs font-mono text-yellow-200">
+              COOLDOWN: {submissionCooldown}s remaining
+            </p>
+          )}
+          {onChainStats && (
+            <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+              <div>ON-CHAIN REPS: {onChainStats.totalReps}</div>
+              <div>SESSIONS: {onChainStats.sessionsCompleted}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Controls */}
-      <div className="flex space-x-4">
+      <div className="flex flex-wrap gap-4 justify-center">
         {!isActive ? (
           <button
             onClick={initializePoseDetection}
             disabled={isLoading}
-            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            className="abs-btn-start disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Starting Camera..." : "Start Workout"}
+            {isLoading ? "STARTING CAMERA..." : "START WORKOUT"}
           </button>
         ) : (
-          <button
-            onClick={stopPoseDetection}
-            className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-          >
-            Stop Workout
+          <button onClick={stopPoseDetection} className="abs-btn-stop">
+            STOP WORKOUT
           </button>
         )}
 
-        <button
-          onClick={resetSession}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-        >
-          Reset Session
+        <button onClick={resetSession} className="abs-btn-reset">
+          RESET SESSION
         </button>
+
+        {isWalletConnected &&
+          exerciseState.counter > 0 &&
+          submissionCooldown === 0 && (
+            <button
+              onClick={() => handleBlockchainSubmission(sessionStats)}
+              disabled={isSubmittingToBlockchain}
+              className="abs-btn-primary bg-purple-600 text-white"
+            >
+              {isSubmittingToBlockchain
+                ? "SUBMITTING..."
+                : "SUBMIT TO BLOCKCHAIN"}
+            </button>
+          )}
       </div>
 
       {/* Error Display */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+      {(error || blockchainError) && (
+        <div className="abs-card-brutal bg-red-600 text-white">
+          <div className="flex items-center space-x-2">
+            <div className="h-6 w-6 bg-white border-2 border-black transform rotate-45"></div>
+            <span className="font-bold uppercase">ERROR:</span>
+          </div>
+          {error && <p className="font-mono mt-2">{error}</p>}
+          {blockchainError && (
+            <p className="font-mono mt-2">BLOCKCHAIN: {blockchainError}</p>
+          )}
         </div>
       )}
 
+      {/* Chainlink Enhancement */}
+      {isWalletConnected && (
+        <ChainlinkEnhancement
+          isConnected={isWalletConnected}
+          currentSession={
+            exerciseState.counter > 0
+              ? {
+                  reps: exerciseState.counter,
+                  formAccuracy: exerciseState.formAccuracy,
+                  streak: currentStreak,
+                  duration: sessionStats.sessionDuration,
+                  poseData: poseDataRef.current,
+                }
+              : undefined
+          }
+          onEnhancedAnalysis={handleEnhancedAnalysis}
+        />
+      )}
+
       {/* Session Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-2xl">
-        <div className="bg-white p-4 rounded-lg shadow text-center">
-          <div className="text-2xl font-bold text-blue-600">
-            {sessionStats.totalReps}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-4xl">
+        <div className="abs-card-brutal bg-blue-600 text-white text-center">
+          <div className="text-3xl font-black">{sessionStats.totalReps}</div>
+          <div className="text-sm font-mono font-bold uppercase border-t-4 border-white pt-2 mt-2">
+            TOTAL REPS
           </div>
-          <div className="text-sm text-gray-600">Total Reps</div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow text-center">
-          <div
-            className={`text-2xl font-bold ${getFormQualityColor(sessionStats.averageFormAccuracy)}`}
-          >
-            {sessionStats.averageFormAccuracy}%
+        <div
+          className="abs-card-brutal text-center"
+          style={{
+            backgroundColor:
+              sessionStats.averageFormAccuracy >= 90
+                ? "#10b981"
+                : sessionStats.averageFormAccuracy >= 70
+                  ? "#eab308"
+                  : "#dc2626",
+            color: "white",
+          }}
+        >
+          <div className="text-3xl font-black">
+            {enhancedFormScore ?? sessionStats.averageFormAccuracy}%
           </div>
-          <div className="text-sm text-gray-600">Avg Form</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {sessionStats.bestStreak}
+          <div className="text-sm font-mono font-bold uppercase border-t-4 border-white pt-2 mt-2">
+            {enhancedFormScore ? "AI FORM" : "AVG FORM"}
           </div>
-          <div className="text-sm text-gray-600">Best Streak</div>
+          {enhancedFormScore && (
+            <div className="text-xs font-mono text-gray-200 mt-1">
+              CHAINLINK ENHANCED
+            </div>
+          )}
         </div>
-        <div className="bg-white p-4 rounded-lg shadow text-center">
-          <div className="text-2xl font-bold text-purple-600">
+        <div className="abs-card-brutal bg-orange-500 text-white text-center">
+          <div className="text-3xl font-black">{sessionStats.bestStreak}</div>
+          <div className="text-sm font-mono font-bold uppercase border-t-4 border-white pt-2 mt-2">
+            BEST STREAK
+          </div>
+        </div>
+        <div className="abs-card-brutal bg-black text-white text-center">
+          <div className="text-3xl font-black">
             {sessionStats.sessionDuration}s
           </div>
-          <div className="text-sm text-gray-600">Duration</div>
+          <div className="text-sm font-mono font-bold uppercase border-t-4 border-white pt-2 mt-2">
+            DURATION
+          </div>
         </div>
       </div>
 
       {/* Instructions */}
-      <div className="bg-gray-100 p-4 rounded-lg max-w-2xl">
-        <h3 className="font-semibold mb-2">How to use:</h3>
-        <ul className="text-sm space-y-1 text-gray-700">
-          <li>• Position yourself so your full torso is visible</li>
-          <li>• Lie down for sit-ups or position for crunches</li>
-          <li>• Maintain proper form for accurate counting</li>
-          <li>• Green form percentage indicates excellent technique</li>
-          <li>• Build streaks with consistent good form (80%+)</li>
-        </ul>
+      <div className="abs-card-brutal bg-yellow-500 text-black max-w-3xl">
+        <h3 className="text-xl font-black mb-4 uppercase border-b-4 border-black pb-2">
+          WORKOUT INSTRUCTIONS:
+        </h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <ul className="font-mono font-bold space-y-2">
+            <li className="flex items-center">
+              <div className="h-3 w-3 bg-black border-2 border-black mr-3 transform rotate-45"></div>
+              POSITION FULL TORSO IN VIEW
+            </li>
+            <li className="flex items-center">
+              <div className="h-3 w-3 bg-black border-2 border-black mr-3"></div>
+              LIE DOWN FOR SIT-UPS
+            </li>
+            <li className="flex items-center">
+              <div className="h-3 w-3 bg-black border-2 border-black mr-3 transform rotate-45"></div>
+              MAINTAIN PROPER FORM
+            </li>
+          </ul>
+          <ul className="font-mono font-bold space-y-2">
+            <li className="flex items-center">
+              <div className="h-3 w-3 bg-green-600 border-2 border-black mr-3"></div>
+              GREEN = EXCELLENT (90%+)
+            </li>
+            <li className="flex items-center">
+              <div className="h-3 w-3 bg-yellow-600 border-2 border-black mr-3"></div>
+              YELLOW = GOOD (70-89%)
+            </li>
+            <li className="flex items-center">
+              <div className="h-3 w-3 bg-red-600 border-2 border-black mr-3"></div>
+              RED = NEEDS WORK ({`<70%`})
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

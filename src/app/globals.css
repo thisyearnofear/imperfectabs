@@ -1,26 +1,740 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    /* Perfect Abs Bauhaus-Brutalist Color System - Enhanced for Accessibility */
+    --background: #ffffff;
+    --foreground: #000000;
+
+    /* Primary Bauhaus Colors - WCAG AA compliant */
+    --abs-red: #b91c1c; /* Darker red for better contrast */
+    --abs-blue: #1d4ed8; /* Darker blue for better contrast */
+    --abs-yellow: #ca8a04; /* Darker yellow for better contrast */
+
+    /* Brutalist Accent Colors - Enhanced contrast */
+    --abs-cyan: #0891b2; /* Darker cyan */
+    --abs-fuchsia: #c026d3; /* Darker fuchsia */
+    --abs-lime: #65a30d; /* Darker lime */
+    --abs-orange: #ea580c; /* Darker orange */
+    --abs-emerald: #059669; /* Darker emerald */
+
+    /* Fitness Context Colors - High contrast versions */
+    --form-excellent: #059669; /* Darker green for 90%+ form */
+    --form-good: #ca8a04; /* Darker yellow for 70-89% form */
+    --form-poor: #b91c1c; /* Darker red for <70% form */
+    --workout-active: #1d4ed8; /* Darker blue for active states */
+    --streak-fire: #ea580c; /* Darker orange for streaks */
+
+    /* Text contrast colors */
+    --text-high-contrast: #000000;
+    --text-medium-contrast: #374151;
+    --text-low-contrast: #6b7280;
+    --text-on-dark: #ffffff;
+    --text-on-colored: #ffffff;
+
+    /* Shadow System */
+    --shadow-brutal: 0.5rem 0.5rem 0 0 black;
+    --shadow-brutal-lg: 0.75rem 0.75rem 0 0 black;
+    --shadow-brutal-white: 0.5rem 0.5rem 0 0 white;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+    :root {
+        --background: #000000;
+        --foreground: #ffffff;
+
+        /* Enhanced dark mode colors */
+        --abs-red: #ef4444; /* Brighter red for dark backgrounds */
+        --abs-blue: #3b82f6; /* Brighter blue for dark backgrounds */
+        --abs-yellow: #eab308; /* Brighter yellow for dark backgrounds */
+
+        --abs-cyan: #06b6d4; /* Brighter cyan */
+        --abs-fuchsia: #d946ef; /* Brighter fuchsia */
+        --abs-lime: #84cc16; /* Brighter lime */
+        --abs-orange: #f97316; /* Brighter orange */
+        --abs-emerald: #10b981; /* Brighter emerald */
+
+        /* Dark mode fitness colors */
+        --form-excellent: #10b981;
+        --form-good: #eab308;
+        --form-poor: #ef4444;
+        --workout-active: #3b82f6;
+        --streak-fire: #f97316;
+
+        /* Dark mode text colors */
+        --text-high-contrast: #ffffff;
+        --text-medium-contrast: #d1d5db;
+        --text-low-contrast: #9ca3af;
+        --text-on-dark: #000000;
+        --text-on-colored: #000000;
+    }
+}
+
+/* Base Styles */
+* {
+    border-color: black;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Courier New", "Lucida Console", monospace;
+    line-height: 1.4;
+}
+
+/* Bauhaus-Brutalist Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+    text-transform: uppercase;
+}
+
+h1 {
+    font-size: 3rem;
+}
+h2 {
+    font-size: 2.25rem;
+}
+h3 {
+    font-size: 1.875rem;
+}
+h4 {
+    font-size: 1.5rem;
+}
+
+/* Perfect Abs Component Classes */
+.abs-card-brutal {
+    @apply bg-white border-8 border-black p-6 relative;
+    box-shadow: var(--shadow-brutal);
+}
+
+.abs-card-brutal:hover {
+    transform: translateY(4px);
+    box-shadow: 0.125rem 0.125rem 0 0 black;
+}
+
+.abs-card-primary {
+    @apply bg-blue-600 text-white border-8 border-black p-6 relative;
+    box-shadow: var(--shadow-brutal);
+}
+
+.abs-card-workout {
+    @apply bg-black text-white border-8 border-black p-6 relative;
+    box-shadow: var(--shadow-brutal-white);
+}
+
+.abs-btn-primary {
+    @apply font-bold text-lg px-6 py-3 border-4 border-black uppercase transition-all duration-200;
+    box-shadow: var(--shadow-brutal);
+}
+
+.abs-btn-primary:hover {
+    transform: translateY(2px);
+    box-shadow: 0.25rem 0.25rem 0 0 black;
+}
+
+.abs-btn-start {
+    @apply font-bold text-lg px-6 py-3 border-4 border-black uppercase transition-all duration-200 bg-green-500 text-black;
+    box-shadow: var(--shadow-brutal);
+}
+
+.abs-btn-start:hover {
+    transform: translateY(2px);
+    box-shadow: 0.25rem 0.25rem 0 0 black;
+}
+
+.abs-btn-stop {
+    @apply font-bold text-lg px-6 py-3 border-4 border-black uppercase transition-all duration-200 text-white;
+    background-color: var(--abs-red);
+    box-shadow: var(--shadow-brutal);
+}
+
+.abs-btn-stop:hover {
+    transform: translateY(2px);
+    box-shadow: 0.25rem 0.25rem 0 0 black;
+}
+
+.abs-btn-reset {
+    @apply font-bold text-lg px-6 py-3 border-4 border-black uppercase transition-all duration-200 text-white;
+    background-color: var(--abs-blue);
+    box-shadow: var(--shadow-brutal);
+}
+
+.abs-btn-reset:hover {
+    transform: translateY(2px);
+    box-shadow: 0.25rem 0.25rem 0 0 black;
+}
+
+.abs-btn-nav {
+    @apply font-bold text-sm px-4 py-3 border-b-4 border-transparent uppercase transition-all duration-200;
+}
+
+.abs-btn-nav.active {
+    border-color: var(--abs-blue);
+    color: var(--abs-blue);
+}
+
+/* Workout Stats Overlay - Enhanced readability */
+.abs-stats-overlay {
+    @apply bg-black text-white p-4 border-4 border-white font-mono text-sm;
+    box-shadow: var(--shadow-brutal-white);
+    /* Ensure high contrast background */
+    background-color: rgba(0, 0, 0, 0.95) !important;
+    backdrop-filter: blur(4px);
+}
+
+.abs-rep-counter {
+    @apply font-black text-4xl;
+    color: var(--abs-cyan);
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.abs-form-score {
+    @apply font-bold text-xl;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.abs-form-excellent {
+    color: var(--form-excellent);
+    font-weight: 900;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+.abs-form-good {
+    color: var(--form-good);
+    font-weight: 900;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+.abs-form-poor {
+    color: var(--form-poor);
+    font-weight: 900;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.abs-status-up {
+    color: var(--form-excellent);
+    font-weight: 900;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+.abs-status-down {
+    color: var(--abs-blue);
+    font-weight: 900;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.abs-streak-indicator {
+    @apply px-3 py-1 font-bold border-4 border-black;
+    background-color: var(--streak-fire);
+    box-shadow: var(--shadow-brutal);
+}
+
+/* Leaderboard Styles */
+.abs-leaderboard-rank {
+    @apply text-2xl font-black;
+}
+
+.abs-leaderboard-gold {
+    color: #ffd700;
+}
+.abs-leaderboard-silver {
+    color: #c0c0c0;
+}
+.abs-leaderboard-bronze {
+    color: #cd7f32;
+}
+
+.abs-leaderboard-row {
+    @apply border-b-4 border-gray-200 hover:bg-gray-50 transition-colors;
+}
+
+.abs-leaderboard-row.top-three {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 215, 0, 0.1) 0%,
+        transparent 100%
+    );
+}
+
+/* Camera and Canvas Styles */
+.abs-camera-container {
+    @apply relative bg-black border-8 border-black overflow-hidden;
+    box-shadow: var(--shadow-brutal-lg);
+}
+
+.abs-pose-landmarks {
+    mix-blend-mode: screen;
+}
+
+/* Form Elements */
+.abs-input {
+    @apply border-4 border-black h-12 text-lg font-mono font-bold bg-white focus:outline-none;
+    box-shadow: var(--shadow-brutal);
+    color: var(--text-high-contrast);
+}
+
+.abs-input:focus {
+    border-color: var(--abs-blue);
+    outline: 3px solid rgba(29, 78, 216, 0.3);
+    outline-offset: 2px;
+}
+
+.abs-input:focus {
+    transform: translateY(2px);
+    box-shadow: 0.25rem 0.25rem 0 0 black;
+}
+
+/* Enhanced button accessibility */
+.abs-btn-primary:focus,
+.abs-btn-start:focus,
+.abs-btn-stop:focus,
+.abs-btn-reset:focus {
+    outline: 3px solid #007aff;
+    outline-offset: 3px;
+}
+
+/* Geometric Accent Elements */
+.abs-geometric-accent::before {
+    content: "";
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 24px;
+    height: 24px;
+    background-color: var(--abs-yellow);
+    border: 4px solid black;
+    transform: rotate(45deg);
+}
+
+.abs-geometric-accent::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-bottom: 20px solid var(--abs-red);
+    border: 4px solid black;
+}
+
+/* Animation Classes */
+@keyframes abs-pulse-form {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.abs-form-pulse {
+    animation: abs-pulse-form 2s ease-in-out infinite;
+}
+
+@keyframes abs-streak-glow {
+    0%,
+    100% {
+        box-shadow: var(--shadow-brutal);
+    }
+    50% {
+        box-shadow:
+            var(--shadow-brutal),
+            0 0 20px var(--streak-fire);
+    }
+}
+
+.abs-streak-glow {
+    animation: abs-streak-glow 1.5s ease-in-out infinite;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .abs-card-brutal,
+    .abs-card-primary,
+    .abs-card-workout {
+        @apply border-4 p-4;
+        box-shadow: 0.25rem 0.25rem 0 0 black;
+    }
+
+    .abs-btn-primary,
+    .abs-btn-start,
+    .abs-btn-stop,
+    .abs-btn-reset {
+        @apply text-base px-4 py-2 border-2;
+        box-shadow: 0.25rem 0.25rem 0 0 black;
+    }
+
+    .abs-stats-overlay {
+        @apply border-2 p-3 text-xs;
+        box-shadow: 0.25rem 0.25rem 0 0 white;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    /* Mobile-Specific Optimizations */
+    @media (max-width: 768px) {
+        /* Touch-friendly button sizing with enhanced contrast */
+        .abs-btn-primary,
+        .abs-btn-start,
+        .abs-btn-stop,
+        .abs-btn-reset {
+            min-height: 48px;
+            font-size: 16px;
+            font-weight: 900;
+            padding: 12px 16px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            color: var(--text-on-colored);
+        }
+
+        /* Prevent zoom on input focus with enhanced visibility */
+        input,
+        select,
+        textarea {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-high-contrast);
+        }
+
+        /* Camera feed optimizations */
+        video {
+            width: 100%;
+            height: auto;
+            max-height: 50vh;
+            object-fit: cover;
+        }
+
+        /* Overlay text sizing for mobile with enhanced readability */
+        .abs-stats-overlay {
+            font-size: 16px; /* Increased from 14px for better readability */
+            font-weight: 700;
+            padding: 12px 16px; /* Increased padding */
+            border-width: 3px; /* Increased border for better visibility */
+            background-color: rgba(0, 0, 0, 0.95) !important;
+        }
+
+        .abs-stats-overlay .text-3xl {
+            font-size: 1.75rem; /* Increased size */
+            font-weight: 900;
+        }
+
+        .abs-stats-overlay .text-4xl {
+            font-size: 2.25rem; /* Increased size */
+            font-weight: 900;
+        }
+
+        /* Card spacing optimization */
+        .abs-card-brutal,
+        .abs-card-primary,
+        .abs-card-workout {
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+
+        /* Grid adjustments */
+        .grid {
+            gap: 1rem;
+        }
+
+        /* Leaderboard table mobile optimization */
+        .abs-leaderboard-table {
+            font-size: 12px;
+        }
+
+        .abs-leaderboard-table th,
+        .abs-leaderboard-table td {
+            padding: 8px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
+        }
+
+        /* Hide less important columns on mobile */
+        .abs-leaderboard-table .mobile-hidden {
+            display: none;
+        }
+
+        /* Better spacing for submission forms */
+        .space-y-6 > * + * {
+            margin-top: 1rem;
+        }
+
+        .space-y-4 > * + * {
+            margin-top: 0.75rem;
+        }
+
+        /* Fullscreen workout mode */
+        .workout-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            background: black;
+        }
+
+        .workout-fullscreen video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+
+        /* Wallet connection mobile optimization */
+        .wallet-status {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white;
+            border-bottom: 2px solid black;
+            padding: 0.5rem;
+        }
+    }
+
+    /* Landscape mode on mobile */
+    @media (max-width: 768px) and (orientation: landscape) {
+        .video-container {
+            height: 100vh;
+        }
+
+        .stats-overlay-landscape {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    }
+
+    /* High DPI displays */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        .abs-btn-primary,
+        .abs-btn-start,
+        .abs-btn-stop,
+        .abs-btn-reset {
+            border-width: 3px;
+        }
+
+        .abs-card-brutal,
+        .abs-card-primary,
+        .abs-card-workout {
+            border-width: 3px;
+        }
+    }
+
+    /* Dark mode support for mobile */
+    @media (prefers-color-scheme: dark) and (max-width: 768px) {
+        .abs-stats-overlay {
+            background-color: rgba(0, 0, 0, 0.95);
+            border-color: white;
+        }
+
+        .abs-card-brutal,
+        .abs-card-primary,
+        .abs-card-workout {
+            background-color: #1a1a1a;
+            color: white;
+            border-color: #333;
+        }
+    }
+
+    /* Accessibility improvements for mobile */
+    @media (max-width: 768px) {
+        /* Larger tap targets */
+        button,
+        input,
+        select,
+        textarea {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* Better focus indicators */
+        button:focus,
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 3px solid #007aff;
+            outline-offset: 2px;
+        }
+
+        /* High contrast mode support - Enhanced */
+        @media (prefers-contrast: high) {
+            .abs-btn-primary,
+            .abs-btn-start,
+            .abs-btn-stop,
+            .abs-btn-reset {
+                border-width: 4px;
+                font-weight: 900;
+                outline: 2px solid currentColor;
+                outline-offset: 2px;
+            }
+
+            .abs-stats-overlay {
+                background-color: #000000 !important;
+                border-width: 4px;
+            }
+
+            .abs-form-excellent,
+            .abs-form-good,
+            .abs-form-poor {
+                font-weight: 900;
+                text-shadow: 0 0 4px rgba(0, 0, 0, 1);
+            }
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .abs-btn-primary:hover,
+            .abs-card-brutal:hover,
+            .abs-input:focus {
+                transform: none;
+                transition: none;
+            }
+
+            .abs-form-pulse,
+            .abs-streak-glow {
+                animation: none;
+            }
+        }
+    }
+
+    /* iOS Safari specific fixes */
+    @supports (-webkit-touch-callout: none) {
+        /* Fix for iOS Safari viewport issues */
+        .mobile-viewport-fix {
+            height: -webkit-fill-available;
+        }
+
+        /* Prevent rubber band scrolling */
+        body {
+            overscroll-behavior: none;
+        }
+
+        /* Fix for iOS input zoom */
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        select,
+        textarea {
+            font-size: 16px;
+            transform-origin: left top;
+        }
+    }
+
+    /* PWA specific styles */
+    @media (display-mode: standalone) {
+        /* Add safe area padding for notched devices */
+        .app-header {
+            padding-top: env(safe-area-inset-top);
+        }
+
+        .app-footer {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Prevent overscroll in PWA mode */
+        body {
+            overscroll-behavior: contain;
+        }
+    }
+}
+
+h2 {
+    font-size: 1.5rem;
+    h3 {
+        font-size: 1.25rem;
+    }
+}
+
+/* Accessibility Improvements */
+@media (prefers-reduced-motion: reduce) {
+    .abs-btn-primary:hover,
+    .abs-card-brutal:hover,
+    .abs-input:focus {
+        transform: none;
+    }
+
+    .abs-form-pulse,
+    .abs-streak-glow {
+        animation: none;
+    }
+}
+
+/* High Contrast Mode - Enhanced */
+@media (prefers-contrast: high) {
+    :root {
+        --abs-red: #ff0000;
+        --abs-blue: #0000ff;
+        --abs-yellow: #000000; /* Black text on yellow background */
+        --form-excellent: #00ff00;
+        --form-good: #000000; /* Black text for better contrast */
+        --form-poor: #ff0000;
+
+        /* High contrast text colors */
+        --text-high-contrast: #000000;
+        --text-medium-contrast: #000000;
+        --text-low-contrast: #333333;
+    }
+
+    /* Force high contrast borders and outlines */
+    * {
+        border-color: #000000 !important;
+    }
+
+    .abs-stats-overlay {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+    }
+}
+
+/* Additional accessibility improvements */
+@media (prefers-reduced-motion: no-preference) {
+    /* Only apply animations if user hasn't requested reduced motion */
+    .abs-form-pulse {
+        animation: abs-pulse-form 2s ease-in-out infinite;
+    }
+
+    .abs-streak-glow {
+        animation: abs-streak-glow 1.5s ease-in-out infinite;
+    }
+}
+
+/* Focus management for better keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #007aff;
+    outline-offset: 2px;
+}
+
+/* Ensure text remains readable on all backgrounds */
+.text-on-colored-bg {
+    color: var(--text-on-colored);
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }

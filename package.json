@@ -2,6 +2,7 @@
   "name": "imperfect-abs",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -10,25 +11,41 @@
     "type-check": "tsc --noEmit",
     "dev:debug": "NODE_OPTIONS='--inspect' next dev --turbopack",
     "clean": "rm -rf .next out node_modules/.cache",
-    "preview": "next build && next start"
+    "preview": "next build && next start",
+    "setup:chainlink": "cd . && node scripts/setup-chainlink.js",
+    "complete:chainlink": "cd . && node scripts/complete-chainlink-setup.js",
+    "verify:chainlink": "cd . && node scripts/verify-chainlink-setup.js",
+    "test:functions": "cd . && node scripts/test-functions.js",
+    "chainlink:fund": "cd . && PRIVATE_KEY=$PRIVATE_KEY node scripts/setup-chainlink.js fund",
+    "chainlink:status": "cd . && node scripts/setup-chainlink.js status",
+    "test:env": "node scripts/test-env.js"
   },
   "dependencies": {
+    "@chainlink/functions-toolkit": "^0.3.2",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/pose": "^0.5.1675469404",
-    "next": "15.3.4",
+    "@types/qrcode": "^1.5.5",
+    "@walletconnect/ethereum-provider": "^2.21.4",
+    "@walletconnect/modal": "^2.7.0",
+    "@walletconnect/qrcode-modal": "^1.8.0",
+    "dotenv": "^16.6.1",
+    "ethers": "^5.8.0",
+    "next": "^15.3.4",
+    "pino-pretty": "^13.0.0",
+    "qrcode.js": "^0.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5"
   }
 }
