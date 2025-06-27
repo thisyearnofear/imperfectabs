@@ -1,30 +1,38 @@
-import { Pose, Results } from '@mediapipe/pose';
-import { Camera } from '@mediapipe/camera_utils';
-
-export interface PoseLandmark {
-  x: number;
-  y: number;
-  z: number;
-  visibility: number;
-}
+import type { Pose, Results, PoseLandmark } from "@mediapipe/pose";
+import type { Camera } from "@mediapipe/camera_utils";
 
 export interface ExerciseState {
   counter: number;
-  status: 'up' | 'down';
+  status: "up" | "down";
   angle: number;
   formAccuracy: number;
 }
 
+export { PoseLandmark };
+
 export class AbsExerciseDetector {
-  private pose: Pose;
+  private pose: Pose | null = null;
   private camera: Camera | null = null;
   private onResults: ((results: Results) => void) | null = null;
 
   constructor() {
+    // Will be initialized when MediaPipe loads
+  }
+
+  public async initialize(
+    videoElement: HTMLVideoElement,
+    onResultsCallback: (results: Results) => void,
+  ): Promise<void> {
+    // Dynamic import to avoid SSR issues
+    const { Pose } = await import("@mediapipe/pose");
+    const { Camera } = await import("@mediapipe/camera_utils");
+
+    this.onResults = onResultsCallback;
+
     this.pose = new Pose({
-      locateFile: (file) => {
+      locateFile: (file: string) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-      }
+      },
     });
 
     this.pose.setOptions({
@@ -33,20 +41,21 @@ export class AbsExerciseDetector {
       enableSegmentation: false,
       smoothSegmentation: false,
       minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minTrackingConfidence: 0.5,
     });
-  }
 
-  public async initialize(videoElement: HTMLVideoElement, onResultsCallback: (results: Results) => void): Promise<void> {
-    this.onResults = onResultsCallback;
-    this.pose.onResults(this.onResults);
+    if (this.pose && this.onResults) {
+      this.pose.onResults(this.onResults);
+    }
 
     this.camera = new Camera(videoElement, {
       onFrame: async () => {
-        await this.pose.send({ image: videoElement });
+        if (this.pose) {
+          await this.pose.send({ image: videoElement });
+        }
       },
       width: 640,
-      height: 480
+      height: 480,
     });
 
     await this.camera.start();
@@ -59,9 +68,14 @@ export class AbsExerciseDetector {
   }
 
   // Calculate angle between three points
-  private calculateAngle(a: PoseLandmark, b: PoseLandmark, c: PoseLandmark): number {
-    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-    let angle = Math.abs(radians * 180.0 / Math.PI);
+  private calculateAngle(
+    a: PoseLandmark,
+    b: PoseLandmark,
+    c: PoseLandmark,
+  ): number {
+    const radians =
+      Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    let angle = Math.abs((radians * 180.0) / Math.PI);
 
     if (angle > 180.0) {
       angle = 360 - angle;
@@ -71,7 +85,10 @@ export class AbsExerciseDetector {
   }
 
   // Get body part coordinates from landmarks
-  private getBodyPart(landmarks: PoseLandmark[], partIndex: number): PoseLandmark {
+  private getBodyPart(
+    landmarks: PoseLandmark[],
+    partIndex: number,
+  ): PoseLandmark {
     return landmarks[partIndex];
   }
 
@@ -90,48 +107,53 @@ export class AbsExerciseDetector {
       x: (leftShoulder.x + rightShoulder.x) / 2,
       y: (leftShoulder.y + rightShoulder.y) / 2,
       z: (leftShoulder.z + rightShoulder.z) / 2,
-      visibility: (leftShoulder.visibility + rightShoulder.visibility) / 2
+      visibility: (leftShoulder.visibility + rightShoulder.visibility) / 2,
     };
 
     const hipAvg = {
       x: (leftHip.x + rightHip.x) / 2,
       y: (leftHip.y + rightHip.y) / 2,
       z: (leftHip.z + rightHip.z) / 2,
-      visibility: (leftHip.visibility + rightHip.visibility) / 2
+      visibility: (leftHip.visibility + rightHip.visibility) / 2,
     };
 
     const kneeAvg = {
       x: (leftKnee.x + rightKnee.x) / 2,
       y: (leftKnee.y + rightKnee.y) / 2,
       z: (leftKnee.z + rightKnee.z) / 2,
-      visibility: (leftKnee.visibility + rightKnee.visibility) / 2
+      visibility: (leftKnee.visibility + rightKnee.visibility) / 2,
     };
 
     return this.calculateAngle(shoulderAvg, hipAvg, kneeAvg);
   }
 
   // Process abs exercise (sit-up/crunch)
-  public processAbsExercise(landmarks: PoseLandmark[], currentState: ExerciseState): ExerciseState {
+  public processAbsExercise(
+    landmarks: PoseLandmark[],
+    currentState: ExerciseState,
+  ): ExerciseState {
     const angle = this.calculateAbsAngle(landmarks);
     let { counter, status } = currentState;
 
     // Sit-up logic based on angle thresholds
-    if (status === 'down') {
-      if (angle < 55) { // Person is in up position
+    if (status === "down") {
+      if (angle < 55) {
+        // Person is in up position
         counter += 1;
-        status = 'up';
+        status = "up";
       }
     } else {
-      if (angle > 105) { // Person is in down position
-        status = 'down';
+      if (angle > 105) {
+        // Person is in down position
+        status = "down";
       }
     }
 
     // Calculate form accuracy based on angle range
     let formAccuracy = 100;
-    if (status === 'up' && (angle < 45 || angle > 65)) {
+    if (status === "up" && (angle < 45 || angle > 65)) {
       formAccuracy = Math.max(0, 100 - Math.abs(angle - 55) * 2);
-    } else if (status === 'down' && (angle < 95 || angle > 115)) {
+    } else if (status === "down" && (angle < 95 || angle > 115)) {
       formAccuracy = Math.max(0, 100 - Math.abs(angle - 105) * 2);
     }
 
@@ -139,15 +161,15 @@ export class AbsExerciseDetector {
       counter,
       status,
       angle,
-      formAccuracy: Math.round(formAccuracy)
+      formAccuracy: Math.round(formAccuracy),
     };
   }
 
   // Check if pose landmarks are valid
   public isValidPose(landmarks: PoseLandmark[]): boolean {
     const requiredLandmarks = [11, 12, 23, 24, 25, 26]; // Shoulders, hips, knees
-    return requiredLandmarks.every(index =>
-      landmarks[index] && landmarks[index].visibility > 0.5
+    return requiredLandmarks.every(
+      (index) => landmarks[index] && landmarks[index].visibility > 0.5,
     );
   }
 }
@@ -186,5 +208,5 @@ export const POSE_LANDMARKS = {
   LEFT_HEEL: 29,
   RIGHT_HEEL: 30,
   LEFT_FOOT_INDEX: 31,
-  RIGHT_FOOT_INDEX: 32
+  RIGHT_FOOT_INDEX: 32,
 };
