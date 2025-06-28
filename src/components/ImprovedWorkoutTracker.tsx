@@ -12,6 +12,7 @@ import WorkoutTips from "./WorkoutTips";
 import WorkoutSummary from "./WorkoutSummary";
 import WorkoutSubmission from "./WorkoutSubmission";
 import ChainlinkEnhancement from "./ChainlinkEnhancement";
+import RewardSystem from "./RewardSystem";
 
 interface SessionStats {
   totalReps: number;
@@ -555,6 +556,12 @@ export default function ImprovedWorkoutTracker() {
                         onEnhancedAnalysis={handleEnhancedAnalysis}
                       />
                     )}
+                  {isWalletConnected && (
+                    <RewardSystem
+                      contract={null}
+                      userAddress={walletAddress || null}
+                    />
+                  )}
                 </>
               )}
 

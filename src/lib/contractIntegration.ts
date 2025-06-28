@@ -36,10 +36,28 @@ export const LEADERBOARD_ABI = [
   "function MIN_FORM_ACCURACY() external view returns (uint256)",
   "function submissionsEnabled() external view returns (bool)",
 
+  // Reward system functions
+  "function claimRewards() external",
+  "function distributeRewards() external",
+  "function getRewardConfig() external view returns (uint256, uint256, uint256, uint256, bool, uint256)",
+  "function getUserRewardInfo(address user) external view returns (uint256, uint256, uint256, uint256, uint256)",
+  "function getRewardEligibleUsersCount() external view returns (uint256)",
+  "function isRewardDistributionDue() external view returns (bool)",
+
+  // Chainlink Functions
+  "function getChainlinkConfig() external view returns (uint64, uint32, bytes32, string memory)",
+  "function getRequestStatus(bytes32 requestId) external view returns (address, uint256, uint256, uint256, bool)",
+
   // Events
   "event AbsScoreAdded(address indexed user, uint256 reps, uint256 formAccuracy, uint256 streak, uint256 timestamp)",
   "event WorkoutSessionRecorded(address indexed user, uint256 sessionIndex, uint256 reps, uint256 formAccuracy, uint256 duration)",
   "event EcosystemIntegration(string indexed appName, address indexed user, uint256 score)",
+  "event AIAnalysisRequested(address indexed user, bytes32 indexed requestId, uint256 sessionIndex)",
+  "event AIAnalysisCompleted(address indexed user, bytes32 indexed requestId, uint256 enhancedScore, uint256 sessionIndex)",
+  "event RewardDistributed(address indexed user, uint256 amount)",
+  "event RewardClaimed(address indexed user, uint256 amount)",
+  "event RewardPoolUpdated(uint256 newTotal)",
+  "event RewardDistributionExecuted(uint256 totalDistributed, uint256 topPerformersCount)",
 ] as const;
 
 // TypeScript interfaces
@@ -71,6 +89,23 @@ export interface FeeConfig {
   submissionFee: string;
   ownerShare: number;
   leaderboardShare: number;
+}
+
+export interface RewardConfig {
+  distributionPeriod: number;
+  topPerformersCount: number;
+  lastDistribution: number;
+  totalRewardPool: string;
+  autoDistribution: boolean;
+  timeUntilNextDistribution: number;
+}
+
+export interface UserRewardInfo {
+  totalEarned: string;
+  lastClaimed: number;
+  currentPeriodEarned: string;
+  rank: number;
+  pendingAmount: string;
 }
 
 export interface ContractError {
@@ -336,6 +371,84 @@ export class ImperfectAbsContract {
       return score.toNumber();
     } catch (error) {
       console.error("Error calculating score:", error);
+      return 0;
+    }
+  }
+
+  // Reward system methods
+  async claimRewards(): Promise<{ success: boolean; txHash?: string; error?: ContractError }> {
+    try {
+      if (!this.contract) {
+        return { success: false, error: { code: "NO_CONTRACT", message: "Contract not initialized" } };
+      }
+
+      const tx = await this.contract.claimRewards();
+      const receipt = await tx.wait();
+
+      return {
+        success: true,
+        txHash: receipt.transactionHash,
+      };
+    } catch (error: unknown) {
+      const contractError = this.parseContractError(error);
+      return { success: false, error: contractError };
+    }
+  }
+
+  async getRewardConfig(): Promise<RewardConfig | null> {
+    try {
+      if (!this.contract) return null;
+
+      const config = await this.contract.getRewardConfig();
+      return {
+        distributionPeriod: config[0].toNumber(),
+        topPerformersCount: config[1].toNumber(),
+        lastDistribution: config[2].toNumber(),
+        totalRewardPool: ethers.utils.formatEther(config[3]),
+        autoDistribution: config[4],
+        timeUntilNextDistribution: config[5].toNumber(),
+      };
+    } catch (error) {
+      console.error("Error getting reward config:", error);
+      return null;
+    }
+  }
+
+  async getUserRewardInfo(userAddress: string): Promise<UserRewardInfo | null> {
+    try {
+      if (!this.contract) return null;
+
+      const info = await this.contract.getUserRewardInfo(userAddress);
+      return {
+        totalEarned: ethers.utils.formatEther(info[0]),
+        lastClaimed: info[1].toNumber(),
+        currentPeriodEarned: ethers.utils.formatEther(info[2]),
+        rank: info[3].toNumber(),
+        pendingAmount: ethers.utils.formatEther(info[4]),
+      };
+    } catch (error) {
+      console.error("Error getting user reward info:", error);
+      return null;
+    }
+  }
+
+  async isRewardDistributionDue(): Promise<boolean> {
+    try {
+      if (!this.contract) return false;
+      return await this.contract.isRewardDistributionDue();
+    } catch (error) {
+      console.error("Error checking reward distribution:", error);
+      return false;
+    }
+  }
+
+  async getRewardEligibleUsersCount(): Promise<number> {
+    try {
+      if (!this.contract) return 0;
+      const count = await this.contract.getRewardEligibleUsersCount();
+      return count.toNumber();
+    } catch (error) {
+      console.error("Error getting eligible users count:", error);
       return 0;
     }
   }

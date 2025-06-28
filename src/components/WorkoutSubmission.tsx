@@ -70,25 +70,21 @@ export default function WorkoutSubmission({
       await imperfectAbsContract.initialize(provider);
 
       // Get contract config and user status
-      const [config, userScore, cooldownCheck, estimatedScore] =
-        await Promise.all([
-          imperfectAbsContract.getContractConfig(),
-          walletAddress
-            ? imperfectAbsContract.getUserScore(walletAddress)
-            : null,
-          walletAddress
-            ? imperfectAbsContract.checkCooldown(walletAddress)
-            : { canSubmit: true, remainingTime: 0 },
-          imperfectAbsContract.calculateScore(
-            sessionStats.totalReps,
-            sessionStats.averageFormAccuracy,
-            sessionStats.bestStreak
-          ),
-        ]);
+      const [userScore, cooldownCheck, estimatedScore] = await Promise.all([
+        walletAddress ? imperfectAbsContract.getUserScore(walletAddress) : null,
+        walletAddress
+          ? imperfectAbsContract.checkCooldown(walletAddress)
+          : { canSubmit: true, remainingTime: 0 },
+        imperfectAbsContract.calculateScore(
+          sessionStats.totalReps,
+          sessionStats.averageFormAccuracy,
+          sessionStats.bestStreak
+        ),
+      ]);
 
       setState((prev) => ({
         ...prev,
-        submissionFee: config.submissionFee,
+        submissionFee: CONTRACT_CONFIG.submissionFee,
         userScore,
         cooldownRemaining: cooldownCheck.remainingTime,
         canSubmit: cooldownCheck.canSubmit,
@@ -226,25 +222,10 @@ export default function WorkoutSubmission({
     return `${baseClass} bg-green-500 text-black hover:bg-green-400`;
   };
 
-  // Performance metrics for display
-  const performanceMetrics = [
-    { label: "Reps", value: sessionStats.totalReps, icon: "💪" },
-    {
-      label: "Form",
-      value: `${sessionStats.averageFormAccuracy}%`,
-      icon: "🎯",
-    },
-    { label: "Streak", value: sessionStats.bestStreak, icon: "🔥" },
-    {
-      label: "Duration",
-      value: `${Math.floor(sessionStats.duration / 60)}:${(
-        sessionStats.duration % 60
-      )
-        .toString()
-        .padStart(2, "0")}`,
-      icon: "⏱️",
-    },
-  ];
+  // Helper function to get transaction URL
+  const getTransactionUrl = (txHash: string) => {
+    return `${CONTRACT_CONFIG.explorerUrl}/tx/${txHash}`;
+  };
 
   return (
     <div className="abs-card-brutal p-6 space-y-6">
@@ -261,17 +242,11 @@ export default function WorkoutSubmission({
       {/* Network Check */}
       {isConnected && <NetworkCheck />}
 
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-2 gap-4">
-        {performanceMetrics.map((metric) => (
-          <div key={metric.label} className="abs-card-primary p-4 text-center">
-            <div className="text-2xl mb-2">{metric.icon}</div>
-            <div className="text-xl font-black text-black">{metric.value}</div>
-            <div className="text-sm font-bold text-gray-600 uppercase">
-              {metric.label}
-            </div>
-          </div>
-        ))}
+      {/* Network Info */}
+      <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-300 text-center">
+        <div className="text-sm font-bold text-gray-600 mb-2">
+          SUBMITTING TO AVALANCHE FUJI
+        </div>
       </div>
 
       {/* Estimated Score */}
@@ -392,9 +367,7 @@ export default function WorkoutSubmission({
           {lastSubmissionResult.txHash && (
             <div className="mt-2">
               <a
-                href={imperfectAbsContract.getTransactionUrl(
-                  lastSubmissionResult.txHash
-                )}
+                href={getTransactionUrl(lastSubmissionResult.txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 underline text-sm font-bold"
@@ -417,7 +390,7 @@ export default function WorkoutSubmission({
           </div>
           <div className="mt-2">
             <a
-              href={imperfectAbsContract.getTransactionUrl(txHash)}
+              href={getTransactionUrl(txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline text-sm font-bold"

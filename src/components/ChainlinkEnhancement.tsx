@@ -333,11 +333,9 @@ export default function ChainlinkEnhancement({
               </div>
               <div>
                 <h3 className="text-xl font-black uppercase border-b-4 border-white pb-1">
-                  AI ENHANCEMENT
+                  🤖 AI-POWERED FORM ANALYSIS
                 </h3>
-                <p className="text-sm font-mono">
-                  POWERED BY CHAINLINK FUNCTIONS
-                </p>
+                <p className="text-sm font-mono">GET PROFESSIONAL FEEDBACK</p>
               </div>
             </div>
             <button
@@ -358,17 +356,33 @@ export default function ChainlinkEnhancement({
                   : "bg-gray-500 text-gray-300 cursor-not-allowed"
               }`}
             >
-              {`GET AI-ENHANCED ANALYSIS (~${formatLinkAmount(REQUEST_COST)})`}
+              {`🤖 Get Professional Analysis (~${formatLinkAmount(
+                REQUEST_COST
+              )})`}
             </button>
           )}
 
           {setupStatus === "needs-setup" && (
-            <button
-              onClick={createSubscription}
-              className="w-full abs-btn-primary bg-blue-600 text-white"
-            >
-              CREATE SUBSCRIPTION ({formatLinkAmount("2.0")})
-            </button>
+            <div className="text-center space-y-4">
+              <div className="bg-white/20 p-4 rounded-lg text-sm space-y-2">
+                <p className="font-bold">🎯 What you'll get:</p>
+                <ul className="text-left space-y-1">
+                  <li>• Professional form analysis</li>
+                  <li>• Personalized improvement tips</li>
+                  <li>• Enhanced accuracy scoring</li>
+                  <li>• Powered by AI & blockchain</li>
+                </ul>
+              </div>
+              <button
+                onClick={createSubscription}
+                className="w-full abs-btn-primary bg-blue-600 text-white"
+              >
+                🚀 Setup AI Analysis Subscription ({formatLinkAmount("2.0")})
+              </button>
+              <p className="text-xs opacity-75">
+                One-time setup • Requires LINK tokens for AI requests
+              </p>
+            </div>
           )}
 
           {setupStatus === "error" && (
