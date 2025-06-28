@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { ethers } from "ethers";
 import { connectWallet as connectWalletLib } from "../lib/contract";
+import { CONTRACT_CONFIG } from "../lib/contractIntegration";
 import EthereumProvider from "@walletconnect/ethereum-provider";
 import { QRCodeDisplay } from "../components/WalletConnectModal";
 
@@ -27,7 +28,7 @@ interface WalletState {
 
 interface WalletContextType extends WalletState {
   connectWallet: (
-    walletType?: "metamask" | "walletconnect" | "core",
+    walletType?: "metamask" | "walletconnect" | "core"
   ) => Promise<void>;
   disconnectWallet: () => void;
   clearError: () => void;
@@ -35,6 +36,7 @@ interface WalletContextType extends WalletState {
   connectMetaMask: () => Promise<void>;
   connectWalletConnect: () => Promise<void>;
   connectCore: () => Promise<void>;
+  switchNetwork: (chainId: number) => Promise<void>;
 }
 
 const initialState: WalletState = {
@@ -90,14 +92,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         console.error("Failed to fetch balance:", error);
       }
     },
-    [],
+    []
   );
 
   const connectMetaMask = useCallback(async () => {
     try {
       if (!window.ethereum) {
         throw new Error(
-          "MetaMask not detected. Please install MetaMask to connect your wallet.",
+          "MetaMask not detected. Please install MetaMask to connect your wallet."
         );
       }
 
@@ -213,7 +215,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         !(window.ethereum as unknown as { isAvalanche?: boolean }).isAvalanche
       ) {
         throw new Error(
-          "Core Wallet not detected. Please install Core Wallet to connect.",
+          "Core Wallet not detected. Please install Core Wallet to connect."
         );
       }
 
@@ -299,7 +301,54 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         setState((prev) => ({ ...prev, isConnecting: false }));
       }
     },
-    [state.isConnecting, connectMetaMask, connectWalletConnect, connectCore],
+    [state.isConnecting, connectMetaMask, connectWalletConnect, connectCore]
+  );
+
+  const switchNetwork = useCallback(
+    async (chainId: number) => {
+      if (!state.provider) {
+        setState((prev) => ({ ...prev, error: "Wallet not connected" }));
+        return;
+      }
+
+      const chainIdHex = `0x${chainId.toString(16)}`;
+
+      try {
+        await state.provider.send("wallet_switchEthereumChain", [
+          { chainId: chainIdHex },
+        ]);
+      } catch (switchError: unknown) {
+        // This error code indicates that the chain has not been added to MetaMask.
+        if ((switchError as { code: number }).code === 4902) {
+          try {
+            await state.provider.send("wallet_addEthereumChain", [
+              {
+                chainId: chainIdHex,
+                chainName: "Avalanche Fuji C-Chain",
+                nativeCurrency: {
+                  name: "Avalanche",
+                  symbol: "AVAX",
+                  decimals: 18,
+                },
+                rpcUrls: [CONTRACT_CONFIG.rpcUrl],
+                blockExplorerUrls: [CONTRACT_CONFIG.explorerUrl],
+              },
+            ]);
+          } catch {
+            setState((prev) => ({
+              ...prev,
+              error: "Failed to add the network. Please add it manually.",
+            }));
+          }
+        } else {
+          setState((prev) => ({
+            ...prev,
+            error: "Failed to switch network.",
+          }));
+        }
+      }
+    },
+    [state.provider]
   );
 
   const disconnectWallet = useCallback(async () => {
@@ -413,7 +462,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           window.ethereum as unknown as {
             removeListener?: (
               event: string,
-              handler: (...args: unknown[]) => void,
+              handler: (...args: unknown[]) => void
             ) => void;
           }
         )?.removeListener
@@ -422,7 +471,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           window.ethereum as unknown as {
             removeListener: (
               event: string,
-              handler: (...args: unknown[]) => void,
+              handler: (...args: unknown[]) => void
             ) => void;
           }
         ).removeListener("accountsChanged", handleAccountsChanged);
@@ -430,7 +479,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           window.ethereum as unknown as {
             removeListener: (
               event: string,
-              handler: (...args: unknown[]) => void,
+              handler: (...args: unknown[]) => void
             ) => void;
           }
         ).removeListener("chainChanged", handleChainChanged);
@@ -438,7 +487,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           window.ethereum as unknown as {
             removeListener: (
               event: string,
-              handler: (...args: unknown[]) => void,
+              handler: (...args: unknown[]) => void
             ) => void;
           }
         ).removeListener("disconnect", handleDisconnect);
@@ -466,6 +515,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     connectMetaMask,
     connectWalletConnect,
     connectCore,
+    switchNetwork,
   };
 
   return (

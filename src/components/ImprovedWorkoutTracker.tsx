@@ -10,6 +10,8 @@ import { useWallet } from "../contexts/WalletContext";
 import WalletConnectButton from "./WalletConnectButton";
 import WorkoutTips from "./WorkoutTips";
 import WorkoutSummary from "./WorkoutSummary";
+import WorkoutSubmission from "./WorkoutSubmission";
+import ChainlinkEnhancement from "./ChainlinkEnhancement";
 
 interface SessionStats {
   totalReps: number;
@@ -80,7 +82,8 @@ export default function ImprovedWorkoutTracker() {
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Wallet context
-  const { isConnected: isWalletConnected } = useWallet();
+  const { isConnected: isWalletConnected, address: walletAddress } =
+    useWallet();
 
   // Auto-detect mobile device
   const [isMobile, setIsMobile] = useState(false);
@@ -224,7 +227,7 @@ export default function ImprovedWorkoutTracker() {
               const isGoodForm = newState.formAccuracy >= 80;
               setCurrentStreak((prev) => (isGoodForm ? prev + 1 : 0));
               setMaxStreak((prev) =>
-                isGoodForm ? Math.max(prev, currentState ? prev + 1 : 1) : prev
+                isGoodForm ? Math.max(prev, prev + 1) : prev
               );
               setFormHistory((prev) => [...prev, newState.formAccuracy]);
             }
@@ -364,15 +367,16 @@ export default function ImprovedWorkoutTracker() {
       <div className="flex-1 px-4 pb-4">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Camera Feed - Main Column */}
-            <div className="md:col-span-2">
+            {/* Main Content Column (Video and Submission) */}
+            <div className="md:col-span-2 space-y-6">
+              {/* Video Card */}
               <div className="abs-card-primary p-4">
                 <div className="relative">
-                  {/* Show branding image if workout is not active and has completed */}
+                  {/* Branding image shown post-workout */}
                   {!workoutState.isActive &&
                   workoutState.hasCompletedWorkout ? (
                     <div
-                      className="flex items-center justify-center w-full h-full bg-white rounded border-4 border-black"
+                      className="flex items-center justify-center w-full bg-white rounded border-4 border-black"
                       style={{ minHeight: isMobile ? "50vh" : "400px" }}
                     >
                       <Image
@@ -407,45 +411,41 @@ export default function ImprovedWorkoutTracker() {
                     </>
                   )}
 
-                  {/* Exercise Status Overlay */}
+                  {/* Live overlays */}
                   {workoutState.isActive && (
-                    <div className="absolute top-4 left-4 right-4">
-                      <div className="abs-stats-overlay text-center">
-                        <div
-                          className={`text-xl md:text-2xl font-black ${getStatusColor()}`}
-                        >
-                          {exerciseState.status.toUpperCase()}
-                        </div>
-                        <div className="text-sm mt-1">
-                          Form: {exerciseState.formAccuracy}% | Angle:{" "}
-                          {Math.round(exerciseState.angle)}°
+                    <>
+                      <div className="absolute top-4 left-4 right-4">
+                        <div className="abs-stats-overlay text-center">
+                          <div
+                            className={`text-xl md:text-2xl font-black ${getStatusColor()}`}
+                          >
+                            {exerciseState.status.toUpperCase()}
+                          </div>
+                          <div className="text-sm mt-1">
+                            Form: {exerciseState.formAccuracy}% | Angle:{" "}
+                            {Math.round(exerciseState.angle)}°
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Reps Counter */}
-                  {workoutState.isActive && (
-                    <div className="absolute bottom-4 left-4">
-                      <div className="abs-stats-overlay">
-                        <div className="text-3xl md:text-4xl font-black text-green-400">
-                          {exerciseState.counter}
+                      <div className="absolute bottom-4 left-4">
+                        <div className="abs-stats-overlay">
+                          <div className="text-3xl md:text-4xl font-black text-green-400">
+                            {exerciseState.counter}
+                          </div>
+                          <div className="text-sm">REPS</div>
                         </div>
-                        <div className="text-sm">REPS</div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Streak Counter */}
-                  {workoutState.isActive && currentStreak > 0 && (
-                    <div className="absolute bottom-4 right-4">
-                      <div className="abs-stats-overlay">
-                        <div className="text-2xl md:text-3xl font-black text-orange-400">
-                          🔥 {currentStreak}
+                      {currentStreak > 0 && (
+                        <div className="absolute bottom-4 right-4">
+                          <div className="abs-stats-overlay">
+                            <div className="text-2xl md:text-3xl font-black text-orange-400">
+                              🔥 {currentStreak}
+                            </div>
+                            <div className="text-sm">STREAK</div>
+                          </div>
                         </div>
-                        <div className="text-sm">STREAK</div>
-                      </div>
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -469,8 +469,6 @@ export default function ImprovedWorkoutTracker() {
                       ⏹️ STOP WORKOUT
                     </button>
                   )}
-
-                  {/* Wallet Connection */}
                   {!isWalletConnected && (
                     <div className="w-full">
                       <WalletConnectButton
@@ -484,7 +482,7 @@ export default function ImprovedWorkoutTracker() {
               </div>
 
               {/* Partner Logos */}
-              <div className="mt-4 flex justify-center items-center space-x-6">
+              <div className="flex justify-center items-center space-x-6">
                 <p className="font-bold text-sm text-gray-500">POWERED BY</p>
                 <Image
                   src="/Chainlink.png"
@@ -504,15 +502,28 @@ export default function ImprovedWorkoutTracker() {
 
               {/* Error Display */}
               {error && (
-                <div className="mt-4 p-4 bg-red-50 border-2 border-red-500 rounded">
+                <div className="p-4 bg-red-50 border-2 border-red-500 rounded">
                   <div className="font-bold text-red-700 mb-2">❌ Error</div>
                   <div className="text-red-600">{error}</div>
                 </div>
               )}
+
+              {/* Submission Form (post-workout) */}
+              {workoutState.hasCompletedWorkout &&
+                workoutState.showSubmission && (
+                  <WorkoutSubmission
+                    sessionStats={sessionStats}
+                    isConnected={isWalletConnected}
+                    walletAddress={walletAddress}
+                    onSubmissionComplete={handleSubmissionComplete}
+                    onError={setError}
+                  />
+                )}
             </div>
 
-            {/* Stats & Submission Sidebar */}
+            {/* Sidebar (Stats and Actions) */}
             <div className="space-y-6">
+              {/* Pre-workout Tips */}
               {!workoutState.isActive && !workoutState.hasCompletedWorkout && (
                 <WorkoutTips />
               )}
@@ -561,20 +572,32 @@ export default function ImprovedWorkoutTracker() {
                 </div>
               )}
 
-              {/* Session Results */}
+              {/* Post-workout Summary & Actions */}
               {workoutState.hasCompletedWorkout && (
-                <WorkoutSummary
-                  sessionStats={sessionStats}
-                  poseData={poseDataRef.current}
-                  onSubmissionComplete={handleSubmissionComplete}
-                  onError={setError}
-                  setWorkoutState={setWorkoutState}
-                  onEnhancedAnalysis={handleEnhancedAnalysis}
-                  enhancedFormScore={enhancedFormScore}
-                />
+                <>
+                  <WorkoutSummary
+                    sessionStats={sessionStats}
+                    enhancedFormScore={enhancedFormScore}
+                  />
+                  {isWalletConnected &&
+                    poseDataRef.current.length > 0 &&
+                    !enhancedFormScore && (
+                      <ChainlinkEnhancement
+                        isConnected={isWalletConnected}
+                        currentSession={{
+                          reps: sessionStats.totalReps,
+                          formAccuracy: sessionStats.averageFormAccuracy,
+                          streak: sessionStats.bestStreak,
+                          duration: sessionStats.duration,
+                          poseData: poseDataRef.current,
+                        }}
+                        onEnhancedAnalysis={handleEnhancedAnalysis}
+                      />
+                    )}
+                </>
               )}
 
-              {/* Tips for mobile */}
+              {/* Mobile Tips */}
               {isMobile && !workoutState.isActive && (
                 <div className="abs-card-primary p-4 mt-6">
                   <h4 className="font-black text-center mb-3">

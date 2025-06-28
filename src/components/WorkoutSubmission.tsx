@@ -9,6 +9,9 @@ import {
   type AbsScore,
 } from "../lib/contractIntegration";
 import { ENSDisplay } from "./ENSDisplay";
+import NetworkCheck from "./NetworkCheck";
+import { useWallet } from "../contexts/WalletContext";
+import { CONTRACT_CONFIG } from "../lib/contractIntegration";
 
 interface WorkoutSubmissionProps {
   sessionStats: {
@@ -40,6 +43,7 @@ export default function WorkoutSubmission({
   onSubmissionComplete,
   onError,
 }: WorkoutSubmissionProps) {
+  const { chainId } = useWallet();
   const [state, setState] = useState<SubmissionState>({
     isSubmitting: false,
     isCheckingCooldown: false,
@@ -78,7 +82,7 @@ export default function WorkoutSubmission({
           imperfectAbsContract.calculateScore(
             sessionStats.totalReps,
             sessionStats.averageFormAccuracy,
-            sessionStats.bestStreak,
+            sessionStats.bestStreak
           ),
         ]);
 
@@ -145,7 +149,7 @@ export default function WorkoutSubmission({
           onError: (error) => {
             handleSubmissionError(error);
           },
-        },
+        }
       );
 
       if (result.success && result.txHash) {
@@ -210,8 +214,11 @@ export default function WorkoutSubmission({
   const getSubmissionButtonClass = (): string => {
     const baseClass =
       "w-full abs-btn-primary text-center transition-all duration-200";
+    const isCorrectNetwork = chainId === CONTRACT_CONFIG.chainId;
 
     if (!isConnected) return `${baseClass} bg-purple-600 text-white`;
+    if (!isCorrectNetwork)
+      return `${baseClass} bg-gray-400 text-gray-600 cursor-not-allowed`;
     if (state.isSubmitting)
       return `${baseClass} bg-gray-400 text-gray-600 cursor-not-allowed`;
     if (state.cooldownRemaining > 0)
@@ -230,7 +237,11 @@ export default function WorkoutSubmission({
     { label: "Streak", value: sessionStats.bestStreak, icon: "🔥" },
     {
       label: "Duration",
-      value: `${Math.floor(sessionStats.duration / 60)}:${(sessionStats.duration % 60).toString().padStart(2, "0")}`,
+      value: `${Math.floor(sessionStats.duration / 60)}:${(
+        sessionStats.duration % 60
+      )
+        .toString()
+        .padStart(2, "0")}`,
       icon: "⏱️",
     },
   ];
@@ -246,6 +257,9 @@ export default function WorkoutSubmission({
           Record your workout on Avalanche blockchain
         </p>
       </div>
+
+      {/* Network Check */}
+      {isConnected && <NetworkCheck />}
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-2 gap-4">
@@ -326,7 +340,10 @@ export default function WorkoutSubmission({
       <button
         onClick={handleSubmission}
         disabled={
-          state.isSubmitting || state.cooldownRemaining > 0 || !isConnected
+          state.isSubmitting ||
+          state.cooldownRemaining > 0 ||
+          !isConnected ||
+          chainId !== CONTRACT_CONFIG.chainId
         }
         className={getSubmissionButtonClass()}
       >
@@ -376,7 +393,7 @@ export default function WorkoutSubmission({
             <div className="mt-2">
               <a
                 href={imperfectAbsContract.getTransactionUrl(
-                  lastSubmissionResult.txHash,
+                  lastSubmissionResult.txHash
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
