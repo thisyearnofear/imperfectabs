@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useWallet } from "../contexts/WalletContext";
+import { ENSDisplay } from "./ENSDisplay";
 
 interface WalletConnectButtonProps {
   variant?: "primary" | "secondary" | "compact";
@@ -40,7 +41,7 @@ export default function WalletConnectButton({
   const [showWalletOptions, setShowWalletOptions] = useState(false);
 
   const handleConnect = async (
-    walletType?: "metamask" | "walletconnect" | "core",
+    walletType?: "metamask" | "walletconnect" | "core"
   ) => {
     clearError();
     if (walletType) {
@@ -67,11 +68,6 @@ export default function WalletConnectButton({
     onDisconnect?.();
   };
 
-  const formatAddress = (addr: string) => {
-    if (!addr) return "";
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
   const getButtonText = () => {
     if (isConnecting) return "CONNECTING...";
     if (isConnected) {
@@ -80,11 +76,16 @@ export default function WalletConnectButton({
         connectedWallet === "metamask"
           ? "🦊"
           : connectedWallet === "core"
-            ? "🏔️"
-            : connectedWallet === "walletconnect"
-              ? "🔗"
-              : "✓";
-      return `${walletIcon} ${formatAddress(address)}`;
+          ? "🏔️"
+          : connectedWallet === "walletconnect"
+          ? "🔗"
+          : "✓";
+      return (
+        <div className="flex items-center space-x-2">
+          <span>{walletIcon}</span>
+          <ENSDisplay address={address} />
+        </div>
+      );
     }
     return "🔗 CONNECT WALLET";
   };
@@ -136,7 +137,9 @@ export default function WalletConnectButton({
         {(showBalance || showAddress) && (
           <div className="text-xs font-mono text-gray-600 text-center">
             {showAddress && (
-              <div className="font-bold">Address: {formatAddress(address)}</div>
+              <div className="font-bold">
+                <ENSDisplay address={address} showAvatar={true} />
+              </div>
             )}
             {showBalance && (
               <div className="text-green-600 font-bold">
@@ -204,8 +207,8 @@ export default function WalletConnectButton({
           isConnected
             ? handleDisconnect
             : showWalletSelection
-              ? () => setShowWalletOptions(!showWalletOptions)
-              : () => handleConnect()
+            ? () => setShowWalletOptions(!showWalletOptions)
+            : () => handleConnect()
         }
         disabled={isConnecting}
         className={getButtonClass()}
@@ -238,7 +241,7 @@ export function WalletStatus() {
       </div>
       <div className="space-y-1">
         <div>
-          Address: {address.slice(0, 6)}...{address.slice(-4)}
+          <ENSDisplay address={address} />
         </div>
         <div>Balance: {balance} AVAX</div>
         <div>
@@ -289,14 +292,14 @@ export function MobileWalletIndicator() {
       connectedWallet === "metamask"
         ? "METAMASK"
         : connectedWallet === "core"
-          ? "CORE"
-          : connectedWallet === "walletconnect"
-            ? "WC"
-            : "WALLET";
+        ? "CORE"
+        : connectedWallet === "walletconnect"
+        ? "WC"
+        : "WALLET";
     return (
       <div className="text-right">
         <div className="text-xs font-bold text-gray-600">
-          {address.slice(0, 6)}...{address.slice(-4)}
+          <ENSDisplay address={address} />
         </div>
         <div className="text-xs text-green-600">● {walletName}</div>
       </div>

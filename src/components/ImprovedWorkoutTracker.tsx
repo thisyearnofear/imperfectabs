@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Image from "next/image";
 import type { Results } from "@mediapipe/pose";
+import { POSE_CONNECTIONS } from "@mediapipe/pose";
+import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { AbsExerciseDetector, ExerciseState } from "../lib/pose-detection";
 import WorkoutSubmission from "./WorkoutSubmission";
 import ChainlinkEnhancement from "./ChainlinkEnhancement";
@@ -56,6 +59,13 @@ export default function ImprovedWorkoutTracker() {
     hasCompletedWorkout: false,
     showSubmission: false,
   });
+  const workoutStateRef = useRef(workoutState);
+  useEffect(() => {
+    workoutStateRef.current = workoutState;
+  }, [workoutState]);
+
+  const [countdown, setCountdown] = useState(120);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -77,6 +87,60 @@ export default function ImprovedWorkoutTracker() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Stop workout session
+  const stopWorkout = useCallback(() => {
+    if (detectorRef.current) {
+      detectorRef.current.stop();
+      detectorRef.current = null;
+    }
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Exit fullscreen if active
+    if (isFullScreen && document.exitFullscreen) {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    }
+
+    // Calculate final stats
+    const endTime = Date.now();
+    const duration = sessionStartTime.current
+      ? Math.round((endTime - sessionStartTime.current) / 1000)
+      : 0;
+
+    const avgFormAccuracy =
+      formHistory.length > 0
+        ? Math.round(
+            formHistory.reduce((a, b) => a + b, 0) / formHistory.length
+          )
+        : exerciseState.formAccuracy;
+
+    const finalStats: SessionStats = {
+      totalReps: exerciseState.counter,
+      averageFormAccuracy: avgFormAccuracy,
+      duration,
+      bestStreak: maxStreak,
+    };
+
+    setSessionStats(finalStats);
+    setWorkoutState((prev) => ({
+      ...prev,
+      isActive: false,
+      hasCompletedWorkout: exerciseState.counter > 0,
+      showSubmission: exerciseState.counter > 0 && isWalletConnected,
+    }));
+  }, [
+    exerciseState.counter,
+    exerciseState.formAccuracy,
+    formHistory,
+    maxStreak,
+    isWalletConnected,
+    isFullScreen,
+  ]);
+
   // Initialize workout session
   const startWorkout = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -97,6 +161,19 @@ export default function ImprovedWorkoutTracker() {
       setFormHistory([]);
       poseDataRef.current = [];
       sessionStartTime.current = Date.now();
+      setCountdown(120);
+
+      // Start countdown timer
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            stopWorkout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
       // Initialize pose detection
       detectorRef.current = new AbsExerciseDetector();
@@ -104,7 +181,7 @@ export default function ImprovedWorkoutTracker() {
       await detectorRef.current.initialize(
         videoRef.current,
         (results: Results) => {
-          if (!detectorRef.current || !workoutState.isActive) return;
+          if (!detectorRef.current || !workoutStateRef.current.isActive) return;
 
           // Draw pose on canvas
           if (canvasRef.current && results.poseLandmarks) {
@@ -112,25 +189,14 @@ export default function ImprovedWorkoutTracker() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-              // Draw pose landmarks
-              const drawingUtils = new (
-                window as unknown as {
-                  DrawingUtils: new (ctx: CanvasRenderingContext2D) => {
-                    drawLandmarks: (landmarks: unknown) => void;
-                    drawConnectors: (
-                      landmarks: unknown,
-                      connections: unknown
-                    ) => void;
-                  };
-                }
-              ).DrawingUtils(ctx);
-              drawingUtils.drawLandmarks(results.poseLandmarks);
-              drawingUtils.drawConnectors(
-                results.poseLandmarks,
-                (window as unknown as { POSE_CONNECTIONS: unknown })
-                  .POSE_CONNECTIONS
-              );
+              drawLandmarks(ctx, results.poseLandmarks, {
+                color: "#FF0000",
+                lineWidth: 2,
+              });
+              drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+                color: "#00FF00",
+                lineWidth: 4,
+              });
             }
           }
 
@@ -197,56 +263,7 @@ export default function ImprovedWorkoutTracker() {
       console.error("Workout initialization error:", err);
       setWorkoutState((prev) => ({ ...prev, isInitializing: false }));
     }
-  }, [isMobile, currentStreak, exerciseState, workoutState.isActive]);
-
-  // Stop workout session
-  const stopWorkout = useCallback(() => {
-    if (detectorRef.current) {
-      detectorRef.current.stop();
-      detectorRef.current = null;
-    }
-
-    // Exit fullscreen if active
-    if (isFullScreen && document.exitFullscreen) {
-      document.exitFullscreen();
-      setIsFullScreen(false);
-    }
-
-    // Calculate final stats
-    const endTime = Date.now();
-    const duration = sessionStartTime.current
-      ? Math.round((endTime - sessionStartTime.current) / 1000)
-      : 0;
-
-    const avgFormAccuracy =
-      formHistory.length > 0
-        ? Math.round(
-            formHistory.reduce((a, b) => a + b, 0) / formHistory.length
-          )
-        : exerciseState.formAccuracy;
-
-    const finalStats: SessionStats = {
-      totalReps: exerciseState.counter,
-      averageFormAccuracy: avgFormAccuracy,
-      duration,
-      bestStreak: maxStreak,
-    };
-
-    setSessionStats(finalStats);
-    setWorkoutState((prev) => ({
-      ...prev,
-      isActive: false,
-      hasCompletedWorkout: exerciseState.counter > 0,
-      showSubmission: exerciseState.counter > 0 && isWalletConnected,
-    }));
-  }, [
-    exerciseState.counter,
-    exerciseState.formAccuracy,
-    formHistory,
-    maxStreak,
-    isWalletConnected,
-    isFullScreen,
-  ]);
+  }, [isMobile, currentStreak, exerciseState, stopWorkout]);
 
   // Handle successful submission
   const handleSubmissionComplete = useCallback((success: boolean) => {
@@ -402,15 +419,19 @@ export default function ImprovedWorkoutTracker() {
               {/* Partner Logos */}
               <div className="mt-4 flex justify-center items-center space-x-6">
                 <p className="font-bold text-sm text-gray-500">POWERED BY</p>
-                <img
+                <Image
                   src="/Chainlink.png"
                   alt="Chainlink Logo"
-                  className="h-8"
+                  width={120}
+                  height={32}
+                  className="h-8 w-auto"
                 />
-                <img
+                <Image
                   src="/Avalanche.png"
                   alt="Avalanche Logo"
-                  className="h-8"
+                  width={120}
+                  height={32}
+                  className="h-8 w-auto"
                 />
               </div>
 
@@ -459,14 +480,10 @@ export default function ImprovedWorkoutTracker() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-bold">Time:</span>
-                      <span className="font-mono">
-                        {sessionStartTime.current
-                          ? Math.floor(
-                              (Date.now() - sessionStartTime.current) / 1000
-                            )
-                          : 0}
-                        s
+                      <span className="font-bold">Time Left:</span>
+                      <span className="font-mono text-xl font-black text-red-500">
+                        {Math.floor(countdown / 60)}:
+                        {(countdown % 60).toString().padStart(2, "0")}
                       </span>
                     </div>
                   </div>
