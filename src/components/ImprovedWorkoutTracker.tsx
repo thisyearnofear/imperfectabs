@@ -326,24 +326,44 @@ export default function ImprovedWorkoutTracker() {
             <div className="md:col-span-2">
               <div className="abs-card-primary p-4">
                 <div className="relative">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-auto bg-black rounded border-4 border-black"
-                    autoPlay
-                    muted
-                    playsInline
-                    style={{
-                      maxHeight: isMobile ? "50vh" : "400px",
-                      objectFit: "cover",
-                    }}
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    className="absolute top-0 left-0 w-full h-full"
-                    style={{
-                      maxHeight: isMobile ? "50vh" : "400px",
-                    }}
-                  />
+                  {/* Show branding image if workout is not active and has completed */}
+                  {!workoutState.isActive &&
+                  workoutState.hasCompletedWorkout ? (
+                    <div
+                      className="flex items-center justify-center w-full h-full bg-white rounded border-4 border-black"
+                      style={{ minHeight: isMobile ? "50vh" : "400px" }}
+                    >
+                      <Image
+                        src="/logo.png"
+                        alt="Imperfect Abs Logo"
+                        width={220}
+                        height={220}
+                        className="object-contain"
+                        priority
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <video
+                        ref={videoRef}
+                        className="w-full h-auto bg-black rounded border-4 border-black"
+                        autoPlay
+                        muted
+                        playsInline
+                        style={{
+                          maxHeight: isMobile ? "50vh" : "400px",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <canvas
+                        ref={canvasRef}
+                        className="absolute top-0 left-0 w-full h-full"
+                        style={{
+                          maxHeight: isMobile ? "50vh" : "400px",
+                        }}
+                      />
+                    </>
+                  )}
 
                   {/* Exercise Status Overlay */}
                   {workoutState.isActive && (
