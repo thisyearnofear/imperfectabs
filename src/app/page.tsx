@@ -34,9 +34,6 @@ function HomeContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 mobile-viewport-fix">
-      {/* Ecosystem Navigation */}
-      <EcosystemNav />
-
       {/* Header */}
       <header className="bg-white border-b-8 border-black app-header">
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6">
@@ -45,13 +42,19 @@ function HomeContent() {
               {/* Geometric Logo */}
               <div className="flex items-center relative">
                 <div
-                  className={`${isMobile ? "h-8 w-8" : "h-12 w-12"} bg-yellow-500 border-4 border-black rotate-12`}
+                  className={`${
+                    isMobile ? "h-8 w-8" : "h-12 w-12"
+                  } bg-yellow-500 border-4 border-black rotate-12`}
                 ></div>
                 <div
-                  className={`${isMobile ? "h-8 w-8" : "h-12 w-12"} bg-red-600 border-4 border-black -ml-4 md:-ml-6 -rotate-12`}
+                  className={`${
+                    isMobile ? "h-8 w-8" : "h-12 w-12"
+                  } bg-red-600 border-4 border-black -ml-4 md:-ml-6 -rotate-12`}
                 ></div>
                 <div
-                  className={`${isMobile ? "h-6 w-6" : "h-8 w-8"} bg-blue-600 border-4 border-black -ml-3 md:-ml-4 rotate-45`}
+                  className={`${
+                    isMobile ? "h-6 w-6" : "h-8 w-8"
+                  } bg-blue-600 border-4 border-black -ml-3 md:-ml-4 rotate-45`}
                 ></div>
               </div>
               <div>
@@ -90,7 +93,9 @@ function HomeContent() {
             >
               <div className="flex items-center justify-center space-x-1 md:space-x-2">
                 <div
-                  className={`${isMobile ? "h-4 w-4" : "h-6 w-6"} bg-red-600 border-2 border-black`}
+                  className={`${
+                    isMobile ? "h-4 w-4" : "h-6 w-6"
+                  } bg-red-600 border-2 border-black`}
                 ></div>
                 <span className={isMobile ? "text-sm" : ""}>WORKOUT</span>
               </div>
@@ -104,7 +109,9 @@ function HomeContent() {
             >
               <div className="flex items-center justify-center space-x-1 md:space-x-2">
                 <div
-                  className={`${isMobile ? "h-4 w-4" : "h-6 w-6"} bg-yellow-500 border-2 border-black transform rotate-45`}
+                  className={`${
+                    isMobile ? "h-4 w-4" : "h-6 w-6"
+                  } bg-yellow-500 border-2 border-black transform rotate-45`}
                 ></div>
                 <span className={isMobile ? "text-sm" : ""}>LEADERBOARD</span>
               </div>
@@ -142,61 +149,61 @@ function HomeContent() {
               </div>
             </div>
 
-            <div className="abs-card-brutal bg-blue-600 text-white">
-              <h3 className="text-xl font-black mb-4 uppercase border-b-4 border-white pb-2">
+            <div className="abs-card-brutal bg-blue-600 text-black">
+              <h3 className="text-xl font-black mb-4 uppercase border-b-4 border-black pb-2">
                 FEATURES
               </h3>
               <ul className="text-sm font-mono space-y-2">
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-cyan-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-cyan-400 border-2 border-black mr-2"></div>
                   REAL-TIME POSE DETECTION
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-lime-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-lime-400 border-2 border-black mr-2"></div>
                   FORM ACCURACY ANALYSIS
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-fuchsia-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-fuchsia-400 border-2 border-black mr-2"></div>
                   STREAK TRACKING
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-orange-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-orange-400 border-2 border-black mr-2"></div>
                   BLOCKCHAIN LEADERBOARDS
                 </li>
               </ul>
             </div>
 
-            <div className="abs-card-brutal bg-red-600 text-white">
-              <h3 className="text-xl font-black mb-4 uppercase border-b-4 border-white pb-2">
+            <div className="abs-card-brutal bg-red-600 text-black">
+              <h3 className="text-xl font-black mb-4 uppercase border-b-4 border-black pb-2">
                 TECHNOLOGY
               </h3>
               <ul className="text-sm font-mono space-y-2">
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-yellow-400 border-2 border-white mr-2 rotate-45"></div>
+                  <div className="h-3 w-3 bg-yellow-400 border-2 border-black mr-2 rotate-45"></div>
                   MEDIAPIPE AI
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-emerald-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-emerald-400 border-2 border-black mr-2"></div>
                   NEXT.JS + TYPESCRIPT
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-cyan-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-cyan-400 border-2 border-black mr-2"></div>
                   AVALANCHE C-CHAIN
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-purple-400 border-2 border-white mr-2 rotate-45"></div>
+                  <div className="h-3 w-3 bg-purple-400 border-2 border-black mr-2 rotate-45"></div>
                   MULTI-CHAIN ECOSYSTEM
                 </li>
                 <li className="flex items-center">
-                  <div className="h-3 w-3 bg-lime-400 border-2 border-white mr-2"></div>
+                  <div className="h-3 w-3 bg-lime-400 border-2 border-black mr-2"></div>
                   CHAINLINK FUNCTIONS
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t-4 border-white pt-6 md:pt-8 mt-6 md:mt-8 text-center">
-            <div className="abs-card-brutal bg-yellow-500 text-black inline-block">
+          <div className="border-t-4 border-white pt-6 md:pt-8 mt-6 md:mt-8 flex flex-col items-center space-y-4">
+            <div className="abs-card-brutal bg-yellow-500 text-black inline-block text-center">
               <p className="text-xs md:text-sm font-mono font-bold uppercase">
                 PART OF THE IMPERFECT FITNESS ECOSYSTEM
                 <br />
@@ -216,6 +223,7 @@ function HomeContent() {
                 )}
               </p>
             </div>
+            <EcosystemNav />
           </div>
         </div>
       </footer>

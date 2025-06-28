@@ -120,7 +120,7 @@ export default function ImprovedWorkoutTracker() {
                     drawLandmarks: (landmarks: unknown) => void;
                     drawConnectors: (
                       landmarks: unknown,
-                      connections: unknown,
+                      connections: unknown
                     ) => void;
                   };
                 }
@@ -129,7 +129,7 @@ export default function ImprovedWorkoutTracker() {
               drawingUtils.drawConnectors(
                 results.poseLandmarks,
                 (window as unknown as { POSE_CONNECTIONS: unknown })
-                  .POSE_CONNECTIONS,
+                  .POSE_CONNECTIONS
               );
             }
           }
@@ -139,7 +139,7 @@ export default function ImprovedWorkoutTracker() {
             const currentState = exerciseState;
             const newState = detectorRef.current.processAbsExercise(
               results.poseLandmarks,
-              currentState,
+              currentState
             );
 
             // Track rep completion
@@ -171,7 +171,7 @@ export default function ImprovedWorkoutTracker() {
               poseDataRef.current = poseDataRef.current.slice(-200);
             }
           }
-        },
+        }
       );
       setWorkoutState((prev) => ({
         ...prev,
@@ -192,7 +192,7 @@ export default function ImprovedWorkoutTracker() {
       }
     } catch (err) {
       setError(
-        "Failed to start camera. Please check permissions and try again.",
+        "Failed to start camera. Please check permissions and try again."
       );
       console.error("Workout initialization error:", err);
       setWorkoutState((prev) => ({ ...prev, isInitializing: false }));
@@ -221,7 +221,7 @@ export default function ImprovedWorkoutTracker() {
     const avgFormAccuracy =
       formHistory.length > 0
         ? Math.round(
-            formHistory.reduce((a, b) => a + b, 0) / formHistory.length,
+            formHistory.reduce((a, b) => a + b, 0) / formHistory.length
           )
         : exerciseState.formAccuracy;
 
@@ -399,6 +399,21 @@ export default function ImprovedWorkoutTracker() {
                 </div>
               </div>
 
+              {/* Partner Logos */}
+              <div className="mt-4 flex justify-center items-center space-x-6">
+                <p className="font-bold text-sm text-gray-500">POWERED BY</p>
+                <img
+                  src="/Chainlink.png"
+                  alt="Chainlink Logo"
+                  className="h-8"
+                />
+                <img
+                  src="/Avalanche.png"
+                  alt="Avalanche Logo"
+                  className="h-8"
+                />
+              </div>
+
               {/* Error Display */}
               {error && (
                 <div className="mt-4 p-4 bg-red-50 border-2 border-red-500 rounded">
@@ -448,7 +463,7 @@ export default function ImprovedWorkoutTracker() {
                       <span className="font-mono">
                         {sessionStartTime.current
                           ? Math.floor(
-                              (Date.now() - sessionStartTime.current) / 1000,
+                              (Date.now() - sessionStartTime.current) / 1000
                             )
                           : 0}
                         s

@@ -271,7 +271,7 @@ h4 {
 
 /* Camera and Canvas Styles */
 .abs-camera-container {
-    @apply relative bg-black border-8 border-black overflow-hidden;
+    @apply relative bg-black border-8 border-black overflow-hidden mx-auto;
     box-shadow: var(--shadow-brutal-lg);
 }
 
