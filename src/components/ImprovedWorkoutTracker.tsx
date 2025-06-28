@@ -316,6 +316,45 @@ export default function ImprovedWorkoutTracker() {
         >
           Tracker
         </h1>
+        {/* Add navigation tabs with improved contrast */}
+        <div className="flex justify-center gap-4 mt-4">
+          <button
+            className={`px-6 py-2 rounded font-black uppercase text-lg transition-colors duration-150
+              ${
+                workoutState.isActive
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-white text-black border-2 border-black hover:bg-gray-200"
+              }
+            `}
+            style={{
+              textShadow: !workoutState.isActive
+                ? "1px 1px 0 #fff, 2px 2px 0 #000"
+                : undefined,
+              outline: "none",
+            }}
+            disabled={workoutState.isActive}
+          >
+            WORKOUT
+          </button>
+          <button
+            className={`px-6 py-2 rounded font-black uppercase text-lg transition-colors duration-150
+              ${
+                workoutState.hasCompletedWorkout
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-white text-black border-2 border-black hover:bg-gray-200"
+              }
+            `}
+            style={{
+              textShadow: !workoutState.hasCompletedWorkout
+                ? "1px 1px 0 #fff, 2px 2px 0 #000"
+                : undefined,
+              outline: "none",
+            }}
+            disabled={workoutState.hasCompletedWorkout}
+          >
+            LEADERBOARD
+          </button>
+        </div>
         <p className="text-center text-black font-bold mt-2">
           {getStatusMessage()}
         </p>
