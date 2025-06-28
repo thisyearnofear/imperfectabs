@@ -39,6 +39,11 @@ export default function ImprovedWorkoutTracker() {
     angle: 0,
     formAccuracy: 100,
   });
+  // Add a ref to always have the latest exerciseState
+  const exerciseStateRef = useRef(exerciseState);
+  useEffect(() => {
+    exerciseStateRef.current = exerciseState;
+  }, [exerciseState]);
 
   // Session tracking
   const [sessionStats, setSessionStats] = useState<SessionStats>({
@@ -193,14 +198,15 @@ export default function ImprovedWorkoutTracker() {
 
           // Process exercise detection
           if (results.poseLandmarks) {
-            const currentState = exerciseState;
+            // Use the ref for the latest state
+            const currentState = exerciseStateRef.current;
             const newState = detectorRef.current.processAbsExercise(
               results.poseLandmarks,
               currentState
             );
 
             // Track rep completion
-            if (newState.counter > exerciseState.counter) {
+            if (newState.counter > currentState.counter) {
               // Start timer on first rep
               if (newState.counter === 1 && !timerRef.current) {
                 timerRef.current = setInterval(() => {
@@ -216,14 +222,10 @@ export default function ImprovedWorkoutTracker() {
               }
 
               const isGoodForm = newState.formAccuracy >= 80;
-              if (isGoodForm) {
-                setCurrentStreak((prev) => prev + 1);
-                setMaxStreak((prev) => Math.max(prev, currentStreak + 1));
-              } else {
-                setCurrentStreak(0);
-              }
-
-              // Add to form history
+              setCurrentStreak((prev) => (isGoodForm ? prev + 1 : 0));
+              setMaxStreak((prev) =>
+                isGoodForm ? Math.max(prev, currentState ? prev + 1 : 1) : prev
+              );
               setFormHistory((prev) => [...prev, newState.formAccuracy]);
             }
 
@@ -268,7 +270,7 @@ export default function ImprovedWorkoutTracker() {
       console.error("Workout initialization error:", err);
       setWorkoutState((prev) => ({ ...prev, isInitializing: false }));
     }
-  }, [isMobile, currentStreak, exerciseState, stopWorkout]);
+  }, [isMobile, stopWorkout]);
 
   // Handle successful submission
   const handleSubmissionComplete = useCallback((success: boolean) => {
@@ -302,12 +304,6 @@ export default function ImprovedWorkoutTracker() {
     if (workoutState.isActive) {
       return exerciseState.status === "up" ? "CRUNCH UP!" : "LOWER DOWN";
     }
-
-    if (workoutState.hasCompletedWorkout) {
-      return "Workout completed! 🎉";
-    }
-
-    return "Workout session";
   };
 
   return (
@@ -317,7 +313,7 @@ export default function ImprovedWorkoutTracker() {
         <h1 className="text-2xl md:text-3xl font-black text-center uppercase">
           💪 Imperfect Abs Tracker
         </h1>
-        <p className="text-center text-gray-600 font-bold mt-2">
+        <p className="text-center text-black font-bold mt-2">
           {getStatusMessage()}
         </p>
       </div>
