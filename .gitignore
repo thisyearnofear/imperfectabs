@@ -49,6 +49,9 @@ next-env.d.ts
 
 # Chainlink configuration
 chainlink-config.json
+encrypted-secrets-config.json
+encrypted-secrets-production.json
+chainlink-functions-config.json
 
 # Private keys and secrets
 *.key

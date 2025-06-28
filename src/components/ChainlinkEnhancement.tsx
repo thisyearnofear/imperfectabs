@@ -63,6 +63,25 @@ export default function ChainlinkEnhancement({
 
       const manager = createFunctionsManager(provider);
       manager.setSigner(signer);
+
+      // Configure encrypted secrets (set these from environment variables)
+      const secretsSlotId =
+        process.env.NEXT_PUBLIC_CHAINLINK_SECRETS_SLOT_ID || "0";
+      const secretsVersion = process.env.NEXT_PUBLIC_CHAINLINK_SECRETS_VERSION;
+
+      if (secretsVersion) {
+        manager.setEncryptedSecretsConfig({
+          slotId: parseInt(secretsSlotId),
+          version: parseInt(secretsVersion),
+          secretsLocation: "DONHosted",
+        });
+        console.log("✅ Encrypted secrets configured for AI analysis");
+      } else {
+        console.log(
+          "⚠️ No encrypted secrets configured - AI analysis will use basic algorithm"
+        );
+      }
+
       setFunctionsManager(manager);
 
       await checkSetupStatus(manager, signer);

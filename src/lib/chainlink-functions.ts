@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { SecretsManager } from "@chainlink/functions-toolkit";
 
 // Chainlink Functions Configuration for Avalanche Fuji
 export const CHAINLINK_CONFIG = {
@@ -119,6 +120,20 @@ export const REQUIRED_SECRETS = {
   openaiApiKey: "YOUR_OPENAI_API_KEY", // Replace with actual key
 };
 
+// Encrypted secrets configuration
+export interface EncryptedSecretsConfig {
+  slotId: number;
+  version: number;
+  secretsLocation: "DONHosted" | "Inline" | "Remote";
+}
+
+// Default secrets configuration (will be set after uploading)
+export const DEFAULT_SECRETS_CONFIG: EncryptedSecretsConfig = {
+  slotId: 0, // Will be set after uploading secrets
+  version: 1,
+  secretsLocation: "DONHosted",
+};
+
 // Interface for Chainlink Functions request
 export interface ChainlinkFunctionsRequest {
   requestId: string;
@@ -139,6 +154,8 @@ export class ChainlinkFunctionsManager {
   private routerContract: ethers.Contract;
   private linkContract: ethers.Contract;
   private subscriptionId: number = 0;
+  private secretsManager: SecretsManager | null = null;
+  private encryptedSecretsConfig: EncryptedSecretsConfig | null = null;
 
   constructor(provider: ethers.providers.Provider) {
     this.provider = provider;
@@ -159,6 +176,24 @@ export class ChainlinkFunctionsManager {
     this.signer = signer;
     this.routerContract = this.routerContract.connect(signer);
     this.linkContract = this.linkContract.connect(signer);
+
+    // Initialize SecretsManager with signer
+    this.initializeSecretsManager();
+  }
+
+  // Initialize SecretsManager for encrypted secrets
+  private async initializeSecretsManager(): Promise<void> {
+    if (!this.signer) return;
+
+    try {
+      this.secretsManager = new SecretsManager({
+        signer: this.signer,
+        functionsRouterAddress: CHAINLINK_CONFIG.router,
+        donId: CHAINLINK_CONFIG.donId,
+      });
+    } catch (error) {
+      console.error("Failed to initialize SecretsManager:", error);
+    }
   }
 
   // Check LINK balance
@@ -253,6 +288,55 @@ export class ChainlinkFunctionsManager {
     }
   }
 
+  // Upload encrypted secrets to DON
+  public async uploadEncryptedSecrets(
+    secrets: Record<string, string>,
+    slotId?: number,
+  ): Promise<{ slotId: number; version: number }> {
+    if (!this.secretsManager) {
+      throw new Error("SecretsManager not initialized");
+    }
+
+    try {
+      console.log("Encrypting secrets for DON...");
+
+      // Encrypt secrets
+      const encryptedSecretsObj = await this.secretsManager.encryptSecrets(secrets);
+
+      console.log("Uploading encrypted secrets to DON...");
+
+      // Upload to DON
+      const uploadResult = await this.secretsManager.uploadEncryptedSecretsToDON({
+        encryptedSecretsHexstring: encryptedSecretsObj.encryptedSecrets,
+        gatewayUrls: CHAINLINK_CONFIG.gatewayUrls,
+        slotId: slotId || 0, // Use provided slotId or 0 for new slot
+        minutesUntilExpiration: 15, // 15 minutes expiration
+      });
+
+      if (!uploadResult.success) {
+        throw new Error(`Failed to upload secrets: ${uploadResult.message}`);
+      }
+
+      const result = {
+        slotId: uploadResult.slotId,
+        version: uploadResult.version,
+      };
+
+      // Store configuration for future use
+      this.encryptedSecretsConfig = {
+        slotId: result.slotId,
+        version: result.version,
+        secretsLocation: "DONHosted",
+      };
+
+      console.log(`✅ Secrets uploaded successfully:`, result);
+      return result;
+    } catch (error) {
+      console.error("Failed to upload encrypted secrets:", error);
+      throw error;
+    }
+  }
+
   // Request AI analysis via Chainlink Functions
   public async requestAIAnalysis(
     sessionData: unknown,
@@ -271,10 +355,27 @@ export class ChainlinkFunctionsManager {
       // Prepare request data
       const args = [JSON.stringify(sessionData)];
 
+      let secretsBytes = "0x";
+
+      if (this.encryptedSecretsConfig) {
+        // Encode DON-hosted encrypted secrets reference
+        const { slotId, version } = this.encryptedSecretsConfig;
+
+        console.log(`Using encrypted secrets: slotId=${slotId}, version=${version}`);
+
+        // Encode the secrets reference for DON-hosted secrets
+        secretsBytes = ethers.utils.defaultAbiCoder.encode(
+          ["uint8", "uint8", "uint8"],
+          [1, slotId, version] // 1 = DONHosted location
+        );
+      } else {
+        console.log("No encrypted secrets configured - using basic request");
+      }
+
       // Encode request data
       const requestData = ethers.utils.defaultAbiCoder.encode(
         ["string[]", "bytes"],
-        [args, "0x"], // No encrypted secrets for now
+        [args, secretsBytes],
       );
 
       // Send request
@@ -311,6 +412,22 @@ export class ChainlinkFunctionsManager {
       console.error("Failed to request AI analysis:", error);
       throw error;
     }
+  }
+
+  // Set encrypted secrets configuration
+  public setEncryptedSecretsConfig(config: EncryptedSecretsConfig): void {
+    this.encryptedSecretsConfig = config;
+    console.log("✅ Encrypted secrets configuration set:", config);
+  }
+
+  // Get current encrypted secrets configuration
+  public getEncryptedSecretsConfig(): EncryptedSecretsConfig | null {
+    return this.encryptedSecretsConfig;
+  }
+
+  // Check if encrypted secrets are configured
+  public hasEncryptedSecrets(): boolean {
+    return this.encryptedSecretsConfig !== null;
   }
 
   // Get subscription details
