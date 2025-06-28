@@ -6,10 +6,10 @@ import type { Results } from "@mediapipe/pose";
 import { POSE_CONNECTIONS } from "@mediapipe/pose";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { AbsExerciseDetector, ExerciseState } from "../lib/pose-detection";
-import WorkoutSubmission from "./WorkoutSubmission";
-import ChainlinkEnhancement from "./ChainlinkEnhancement";
 import { useWallet } from "../contexts/WalletContext";
 import WalletConnectButton from "./WalletConnectButton";
+import WorkoutTips from "./WorkoutTips";
+import WorkoutSummary from "./WorkoutSummary";
 
 interface SessionStats {
   totalReps: number;
@@ -67,12 +67,15 @@ export default function ImprovedWorkoutTracker() {
   const [countdown, setCountdown] = useState(120);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [enhancedFormScore, setEnhancedFormScore] = useState<number | null>(
+    null
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Wallet context
-  const { isConnected: isWalletConnected, address: walletAddress } =
-    useWallet();
+  const { isConnected: isWalletConnected } = useWallet();
 
   // Auto-detect mobile device
   const [isMobile, setIsMobile] = useState(false);
@@ -163,18 +166,6 @@ export default function ImprovedWorkoutTracker() {
       sessionStartTime.current = Date.now();
       setCountdown(120);
 
-      // Start countdown timer
-      timerRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current!);
-            stopWorkout();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
       // Initialize pose detection
       detectorRef.current = new AbsExerciseDetector();
 
@@ -210,6 +201,20 @@ export default function ImprovedWorkoutTracker() {
 
             // Track rep completion
             if (newState.counter > exerciseState.counter) {
+              // Start timer on first rep
+              if (newState.counter === 1 && !timerRef.current) {
+                timerRef.current = setInterval(() => {
+                  setCountdown((prev) => {
+                    if (prev <= 1) {
+                      clearInterval(timerRef.current!);
+                      stopWorkout();
+                      return 0;
+                    }
+                    return prev - 1;
+                  });
+                }, 1000);
+              }
+
               const isGoodForm = newState.formAccuracy >= 80;
               if (isGoodForm) {
                 setCurrentStreak((prev) => prev + 1);
@@ -273,6 +278,10 @@ export default function ImprovedWorkoutTracker() {
     }
   }, []);
 
+  const handleEnhancedAnalysis = (score: number) => {
+    setEnhancedFormScore(score);
+  };
+
   // Get workout status color
   const getStatusColor = () => {
     if (exerciseState.formAccuracy >= 90) return "text-green-500";
@@ -316,9 +325,9 @@ export default function ImprovedWorkoutTracker() {
       {/* Main Content */}
       <div className="flex-1 px-4 pb-4">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Camera Feed - Main Column */}
-            <div className="lg:col-span-2">
+            <div className="md:col-span-2">
               <div className="abs-card-primary p-4">
                 <div className="relative">
                   <video
@@ -446,6 +455,10 @@ export default function ImprovedWorkoutTracker() {
 
             {/* Stats & Submission Sidebar */}
             <div className="space-y-6">
+              {!workoutState.isActive && !workoutState.hasCompletedWorkout && (
+                <WorkoutTips />
+              )}
+
               {/* Live Stats */}
               {workoutState.isActive && (
                 <div className="abs-card-workout p-4">
@@ -490,94 +503,22 @@ export default function ImprovedWorkoutTracker() {
                 </div>
               )}
 
-              {/* Submission Component */}
-              {workoutState.showSubmission && (
-                <WorkoutSubmission
+              {/* Session Results */}
+              {workoutState.hasCompletedWorkout && (
+                <WorkoutSummary
                   sessionStats={sessionStats}
-                  isConnected={isWalletConnected}
-                  walletAddress={walletAddress}
+                  poseData={poseDataRef.current}
                   onSubmissionComplete={handleSubmissionComplete}
                   onError={setError}
+                  setWorkoutState={setWorkoutState}
+                  onEnhancedAnalysis={handleEnhancedAnalysis}
+                  enhancedFormScore={enhancedFormScore}
                 />
               )}
 
-              {/* Session Results */}
-              {workoutState.hasCompletedWorkout &&
-                !workoutState.showSubmission && (
-                  <div className="abs-card-brutal p-4">
-                    <h3 className="font-black uppercase text-center mb-4">
-                      🏆 Session Complete
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="font-bold">Total Reps:</span>
-                        <span className="text-xl font-black">
-                          {sessionStats.totalReps}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-bold">Avg Form:</span>
-                        <span className="text-xl font-black">
-                          {sessionStats.averageFormAccuracy}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-bold">Best Streak:</span>
-                        <span className="text-xl font-black">
-                          {sessionStats.bestStreak}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-bold">Duration:</span>
-                        <span className="font-mono">
-                          {Math.floor(sessionStats.duration / 60)}:
-                          {(sessionStats.duration % 60)
-                            .toString()
-                            .padStart(2, "0")}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isWalletConnected ? (
-                      <button
-                        onClick={() =>
-                          setWorkoutState((prev) => ({
-                            ...prev,
-                            showSubmission: true,
-                          }))
-                        }
-                        className="w-full mt-4 abs-btn-primary bg-green-500 text-black"
-                      >
-                        📤 SUBMIT TO BLOCKCHAIN
-                      </button>
-                    ) : (
-                      <div className="mt-4 p-3 bg-gray-100 border-2 border-gray-300 text-center">
-                        <div className="font-bold text-gray-700 mb-2">
-                          Connect wallet to submit to leaderboard
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-              {/* Chainlink Enhancement */}
-              {workoutState.hasCompletedWorkout &&
-                poseDataRef.current.length > 0 && (
-                  <ChainlinkEnhancement
-                    isConnected={isWalletConnected}
-                    currentSession={{
-                      reps: sessionStats.totalReps,
-                      formAccuracy: sessionStats.averageFormAccuracy,
-                      streak: sessionStats.bestStreak,
-                      duration: sessionStats.duration,
-                      poseData: poseDataRef.current,
-                    }}
-                  />
-                )}
-
               {/* Tips for mobile */}
-              {isMobile && (
-                <div className="abs-card-primary p-4">
+              {isMobile && !workoutState.isActive && (
+                <div className="abs-card-primary p-4 mt-6">
                   <h4 className="font-black text-center mb-3">
                     📱 Mobile Tips
                   </h4>

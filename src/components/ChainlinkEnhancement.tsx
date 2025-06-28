@@ -5,11 +5,11 @@ import { ethers } from "ethers";
 import {
   ChainlinkFunctionsManager,
   createFunctionsManager,
-  CHAINLINK_CONFIG,
   formatLinkAmount,
   estimateRequestCost,
 } from "../lib/chainlink-functions";
 import { useWallet } from "../contexts/WalletContext";
+import LoadingState from "./LoadingState";
 
 interface ChainlinkRequest {
   requestId: string;
@@ -40,7 +40,7 @@ export default function ChainlinkEnhancement({
   const [requests, setRequests] = useState<ChainlinkRequest[]>([]);
   const [isRequestingAnalysis, setIsRequestingAnalysis] = useState(false);
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
-  const [linkBalance, setLinkBalance] = useState<string>("0");
+  const [showHistory, setShowHistory] = useState(false);
   const [functionsManager, setFunctionsManager] =
     useState<ChainlinkFunctionsManager | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<number>(0);
@@ -81,14 +81,13 @@ export default function ChainlinkEnhancement({
 
   const checkSetupStatus = async (
     manager: ChainlinkFunctionsManager,
-    signer: ethers.Signer,
+    signer: ethers.Signer
   ) => {
     try {
       const address = await signer.getAddress();
 
       // Check LINK balance
       const balance = await manager.getLinkBalance(address);
-      setLinkBalance(balance);
 
       // Check if we have a subscription ID from environment or config
       const savedSubId =
@@ -151,7 +150,7 @@ export default function ChainlinkEnhancement({
       const parsed = JSON.parse(saved);
       setRequests(parsed);
       setHasActiveRequest(
-        parsed.some((r: ChainlinkRequest) => r.status === "pending"),
+        parsed.some((r: ChainlinkRequest) => r.status === "pending")
       );
     }
   };
@@ -185,7 +184,7 @@ export default function ChainlinkEnhancement({
       // Make real Chainlink Functions request
       const functionsRequest = await functionsManager.requestAIAnalysis(
         sessionData,
-        subscriptionId,
+        subscriptionId
       );
 
       const newRequest: ChainlinkRequest = {
@@ -228,7 +227,7 @@ export default function ChainlinkEnhancement({
         const updatedRequests = requests.map((req) =>
           req.requestId === requestId
             ? { ...req, status: "failed" as const }
-            : req,
+            : req
         );
         saveRequests(updatedRequests);
         setHasActiveRequest(false);
@@ -245,7 +244,7 @@ export default function ChainlinkEnhancement({
         const variance = Math.random() * 15 - 7.5; // ±7.5%
         const enhancedScore = Math.max(
           0,
-          Math.min(100, Math.round(baseScore + variance)),
+          Math.min(100, Math.round(baseScore + variance))
         );
 
         const updatedRequests = requests.map((req) =>
@@ -254,9 +253,11 @@ export default function ChainlinkEnhancement({
                 ...req,
                 status: "fulfilled" as const,
                 enhancedScore,
-                fulfillmentTxHash: `0x${Math.random().toString(16).substr(2, 64)}`,
+                fulfillmentTxHash: `0x${Math.random()
+                  .toString(16)
+                  .substr(2, 64)}`,
               }
-            : req,
+            : req
         );
 
         saveRequests(updatedRequests);
@@ -282,6 +283,12 @@ export default function ChainlinkEnhancement({
       })
       .slice(0, 50); // Limit to 50 angle measurements
   };
+
+  const canRequestAnalysis =
+    isConnected &&
+    currentSession &&
+    setupStatus === "ready" &&
+    !hasActiveRequest;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -313,232 +320,97 @@ export default function ChainlinkEnhancement({
     }
   };
 
-  const hasEnoughLink = parseFloat(linkBalance) >= parseFloat(REQUEST_COST);
-  const canRequestAnalysis =
-    isConnected &&
-    currentSession &&
-    setupStatus === "ready" &&
-    !hasActiveRequest;
-
   return (
-    <div className="abs-card-brutal bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-      <div className="flex items-center mb-4">
-        <div className="h-8 w-8 bg-white border-4 border-black flex items-center justify-center mr-3">
-          <span className="text-xl">🔗</span>
-        </div>
-        <div>
-          <h3 className="text-xl font-black uppercase border-b-4 border-white pb-1">
-            CHAINLINK AI ENHANCEMENT
-          </h3>
-          <p className="text-sm font-mono">
-            ADVANCED FORM ANALYSIS POWERED BY CHAINLINK FUNCTIONS
-          </p>
-        </div>
-      </div>
-
-      {/* LINK Balance & Status */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="abs-card-brutal bg-black text-white text-center">
-          <div className="text-lg font-black">
-            {formatLinkAmount(linkBalance)}
-          </div>
-          <div className="text-xs font-mono uppercase border-t-2 border-white pt-1 mt-1">
-            BALANCE
-          </div>
-        </div>
-        <div className="abs-card-brutal bg-white text-black text-center">
-          <div className="text-lg font-black">{requests.length}</div>
-          <div className="text-xs font-mono uppercase border-t-2 border-black pt-1 mt-1">
-            REQUESTS
-          </div>
-        </div>
-      </div>
-
-      {/* Setup Status */}
-      {setupStatus === "checking" && (
-        <div className="mb-6 p-4 bg-yellow-500 text-black border-4 border-black">
-          <div className="flex items-center space-x-2">
-            <div className="h-4 w-4 bg-black animate-spin"></div>
-            <span className="font-bold">CHECKING CHAINLINK SETUP...</span>
-          </div>
-        </div>
-      )}
-
-      {setupStatus === "needs-setup" && (
-        <div className="mb-6">
-          <div className="p-4 bg-orange-500 text-white border-4 border-black mb-4">
-            <h4 className="font-bold mb-2">⚙️ SETUP REQUIRED</h4>
-            <p className="text-sm font-mono">
-              Create Chainlink Functions subscription to enable AI analysis
-            </p>
-          </div>
-          <button
-            onClick={createSubscription}
-            className="w-full abs-btn-primary bg-blue-600 text-white"
-          >
-            CREATE SUBSCRIPTION ({formatLinkAmount("2.0")})
-          </button>
-        </div>
-      )}
-
-      {setupStatus === "error" && (
-        <div className="mb-6 p-4 bg-red-600 text-white border-4 border-black">
-          <h4 className="font-bold mb-2">❌ SETUP ERROR</h4>
-          <p className="text-sm font-mono">
-            Need at least {formatLinkAmount(MIN_LINK_BALANCE.toString())} to
-            setup Chainlink Functions
-          </p>
-          <p className="text-xs mt-2">
-            Get LINK: https://faucets.chain.link/fuji
-          </p>
-        </div>
-      )}
-
-      {/* Request Button */}
-      {setupStatus === "ready" && (
-        <div className="mb-6">
-          <button
-            onClick={requestEnhancedAnalysis}
-            disabled={!canRequestAnalysis || isRequestingAnalysis}
-            className={`w-full abs-btn-primary ${
-              canRequestAnalysis
-                ? "bg-lime-400 text-black hover:bg-lime-300"
-                : "bg-gray-500 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            {isRequestingAnalysis ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="h-4 w-4 bg-black border-2 border-white animate-spin"></div>
-                <span>REQUESTING AI ANALYSIS...</span>
+    <div className="abs-card-brutal bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+      {isRequestingAnalysis || hasActiveRequest ? (
+        <LoadingState />
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="h-8 w-8 bg-white border-4 border-black flex items-center justify-center mr-3">
+                <span className="text-xl">🔗</span>
               </div>
-            ) : hasActiveRequest ? (
-              "ANALYSIS IN PROGRESS..."
-            ) : !hasEnoughLink ? (
-              `NEED ${formatLinkAmount(REQUEST_COST)} FOR REQUEST`
-            ) : !currentSession ? (
-              "COMPLETE A WORKOUT FIRST"
-            ) : (
-              `REQUEST AI ENHANCEMENT (~${formatLinkAmount(REQUEST_COST)})`
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* How It Works */}
-      <div className="mb-6 p-4 bg-black bg-opacity-50 border-4 border-white">
-        <h4 className="font-black text-sm uppercase mb-2 border-b-2 border-white pb-1">
-          HOW IT WORKS:
-        </h4>
-        <div className="space-y-2 text-xs font-mono">
-          <div className="flex items-center">
-            <div className="h-2 w-2 bg-cyan-400 border border-white mr-2"></div>
-            POSE DATA SENT TO CHAINLINK FUNCTIONS
-          </div>
-          <div className="flex items-center">
-            <div className="h-2 w-2 bg-lime-400 border border-white mr-2"></div>
-            AI MODEL ANALYZES MOVEMENT PATTERNS
-          </div>
-          <div className="flex items-center">
-            <div className="h-2 w-2 bg-fuchsia-400 border border-white mr-2"></div>
-            ENHANCED SCORE RETURNED ON-CHAIN
-          </div>
-          <div className="flex items-center">
-            <div className="h-2 w-2 bg-orange-400 border border-white mr-2"></div>
-            RESULTS STORED IN SMART CONTRACT
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Requests */}
-      {requests.length > 0 && (
-        <div>
-          <h4 className="font-black text-sm uppercase mb-3 border-b-2 border-white pb-1">
-            RECENT AI REQUESTS:
-          </h4>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {requests.slice(0, 5).map((request) => (
-              <div
-                key={request.requestId}
-                className="p-3 bg-black bg-opacity-30 border-2 border-white text-xs"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">
-                      {getStatusIcon(request.status)}
-                    </span>
-                    <span
-                      className={`font-bold uppercase ${getStatusColor(request.status)}`}
-                    >
-                      {request.status}
-                    </span>
-                  </div>
-                  <div className="font-mono text-gray-300">
-                    {new Date(request.timestamp).toLocaleTimeString()}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div>
-                    <span className="text-gray-400">REPS:</span>{" "}
-                    {(request.sessionData as { reps: number }).reps}
-                  </div>
-                  <div>
-                    <span className="text-gray-400">FORM:</span>{" "}
-                    {
-                      (request.sessionData as { formAccuracy: number })
-                        .formAccuracy
-                    }
-                    %
-                  </div>
-                </div>
-
-                {request.enhancedScore !== undefined && (
-                  <div className="border-t-2 border-gray-600 pt-2 mt-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400 font-bold">
-                        AI ENHANCED SCORE:
-                      </span>
-                      <span
-                        className={`font-black text-lg ${
-                          request.enhancedScore >= 90
-                            ? "text-green-400"
-                            : request.enhancedScore >= 70
-                              ? "text-yellow-400"
-                              : "text-red-400"
-                        }`}
-                      >
-                        {request.enhancedScore}%
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="text-gray-500 font-mono text-xs mt-1">
-                  ID: {request.requestId.slice(0, 8)}...
-                  {request.requestId.slice(-6)}
-                </div>
+              <div>
+                <h3 className="text-xl font-black uppercase border-b-4 border-white pb-1">
+                  AI ENHANCEMENT
+                </h3>
+                <p className="text-sm font-mono">
+                  POWERED BY CHAINLINK FUNCTIONS
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Network Info */}
-      <div className="mt-6 pt-4 border-t-4 border-white text-center">
-        <div className="grid grid-cols-2 gap-4 text-xs font-mono">
-          <div>
-            <div className="font-bold">FUNCTIONS ROUTER:</div>
-            <div className="text-gray-300">
-              {CHAINLINK_CONFIG.router.slice(0, 8)}...
-              {CHAINLINK_CONFIG.router.slice(-6)}
             </div>
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-xs font-mono underline"
+            >
+              {showHistory ? "Hide" : "Show"} History
+            </button>
           </div>
-          <div>
-            <div className="font-bold">SUBSCRIPTION:</div>
-            <div className="text-gray-300">{subscriptionId || "Not Setup"}</div>
-          </div>
-        </div>
-      </div>
+
+          {setupStatus === "ready" && (
+            <button
+              onClick={requestEnhancedAnalysis}
+              disabled={!canRequestAnalysis}
+              className={`w-full abs-btn-primary ${
+                canRequestAnalysis
+                  ? "bg-lime-400 text-black hover:bg-lime-300"
+                  : "bg-gray-500 text-gray-300 cursor-not-allowed"
+              }`}
+            >
+              {`GET AI-ENHANCED ANALYSIS (~${formatLinkAmount(REQUEST_COST)})`}
+            </button>
+          )}
+
+          {setupStatus === "needs-setup" && (
+            <button
+              onClick={createSubscription}
+              className="w-full abs-btn-primary bg-blue-600 text-white"
+            >
+              CREATE SUBSCRIPTION ({formatLinkAmount("2.0")})
+            </button>
+          )}
+
+          {setupStatus === "error" && (
+            <div className="text-center text-red-300 font-mono text-sm">
+              <p>
+                Insufficient LINK balance to perform AI analysis. Please ensure
+                your wallet has at least 2 LINK on the Fuji testnet.
+              </p>
+              <a
+                href="https://faucets.chain.link/fuji"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline mt-2 inline-block"
+              >
+                Get LINK from Faucet
+              </a>
+            </div>
+          )}
+
+          {showHistory && requests.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {requests.map((request) => (
+                <div
+                  key={request.requestId}
+                  className="p-2 bg-black bg-opacity-20 text-xs"
+                >
+                  <div className="flex justify-between">
+                    <span
+                      className={`font-bold ${getStatusColor(request.status)}`}
+                    >
+                      {getStatusIcon(request.status)} {request.status}
+                    </span>
+                    <span className="font-mono">
+                      {new Date(request.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
