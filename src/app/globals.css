@@ -181,12 +181,17 @@ h4 {
 }
 
 .abs-btn-nav {
-    @apply font-bold text-sm px-4 py-3 border-b-4 border-transparent uppercase transition-all duration-200;
+    @apply font-bold text-sm px-4 py-3 border-b-4 border-transparent uppercase transition-all duration-200 text-gray-500;
+}
+
+.abs-btn-nav:hover {
+    color: var(--abs-blue);
 }
 
 .abs-btn-nav.active {
     border-color: var(--abs-blue);
     color: var(--abs-blue);
+    font-weight: 900;
 }
 
 /* Workout Stats Overlay - Enhanced readability */
@@ -735,6 +740,6 @@ textarea:focus-visible {
 /* Ensure text remains readable on all backgrounds */
 .text-on-colored-bg {
     color: var(--text-on-colored);
-    font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    font-weight: 900;
+    text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.5);
 }
