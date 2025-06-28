@@ -54,3 +54,19 @@ chainlink-config.json
 *.key
 *.pem
 private-key.txt
+
+# Foundry/Forge specific
+cache/
+broadcast/
+out/
+
+# Sensitive deployment data
+*.json.bak
+run-latest.json
+run-*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
+import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
-import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
+import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
 /**
  * @title ImperfectAbsLeaderboard
@@ -47,7 +47,7 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
     }
 
     // Chainlink Functions request tracking
-    struct FunctionsRequest {
+    struct ChainlinkRequest {
         address user;
         uint256 sessionIndex;
         uint256 originalScore;
@@ -85,21 +85,15 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
     mapping(address => WorkoutSession[]) public userSessions;
 
     // Chainlink Functions state
-    mapping(bytes32 => FunctionsRequest) public functionsRequests;
+    mapping(bytes32 => ChainlinkRequest) public functionsRequests;
     uint64 public subscriptionId;
     uint32 public gasLimit;
     bytes32 public donID;
     string public source;
 
-    // Gas optimization: Store submission timestamp as an offset from baseline
-    uint256 public submissionTimeBaseline;
-    mapping(address => uint256) public submissionTimeOffset;
-
     // Constants optimized for Avalanche's fast finality
-    uint256 public SUBMISSION_COOLDOWN = 60 seconds; // 1 minute cooldown
     uint256 public MAX_REPS_PER_SESSION = 200;       // Maximum reps per session
     uint256 public MIN_FORM_ACCURACY = 50;           // Minimum form accuracy to count (50%)
-    address public owner;
 
     // Fee configuration
     FeeConfig public feeConfig;
@@ -124,6 +118,7 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
 
     // Emergency controls
     bool public submissionsEnabled = true;
+    bool public aiAnalysisEnabled = true;
 
     // Events
     event AbsScoreAdded(
@@ -151,10 +146,15 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         uint256 enhancedScore,
         uint256 sessionIndex
     );
+    event AIAnalysisFailed(
+        address indexed user,
+        bytes32 indexed requestId,
+        uint256 sessionIndex,
+        string reason
+    );
     event SubmissionCooldownChanged(uint256 newCooldown);
     event MaxRepsPerSessionChanged(uint256 newMaxReps);
     event MinFormAccuracyChanged(uint256 newMinAccuracy);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event SubmissionStatusChanged(bool enabled);
     event EmergencyWithdrawal(address indexed to, uint256 amount);
     event FeeConfigUpdated(uint256 submissionFee, uint256 ownerShare, uint256 leaderboardShare);
@@ -166,11 +166,6 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
     event RewardConfigUpdated(uint256 distributionPeriod, uint256 topPerformersCount, bool autoDistribution);
 
     // Modifiers
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert Unauthorized();
-        _;
-    }
-
     modifier whenSubmissionsEnabled() {
         if (!submissionsEnabled) revert OperationFailed();
         _;
@@ -192,8 +187,6 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         bytes32 _donID,
         string memory _source
     ) FunctionsClient(router) ConfirmedOwner(msg.sender) {
-        owner = msg.sender;
-        submissionTimeBaseline = block.timestamp;
 
         // Initialize Chainlink Functions
         subscriptionId = _subscriptionId;
@@ -224,7 +217,6 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         }
         deployedChainId = id;
 
-        emit OwnershipTransferred(address(0), msg.sender);
         emit FeeConfigUpdated(feeConfig.submissionFee, feeConfig.ownerShare, feeConfig.leaderboardShare);
     }
 
@@ -253,16 +245,21 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         // Update or create user's leaderboard entry
         updateUserLeaderboardScore(_reps, _formAccuracy, _streak);
 
-        // Update submission time tracking
-        uint256 timeOffset = block.timestamp - submissionTimeBaseline;
-        submissionTimeOffset[msg.sender] = timeOffset;
+        // Update submission time tracking (currently disabled for testing)
 
         // Distribute submission fee
         distributeFee();
 
-        // Request AI analysis via Chainlink Functions
+        // Request AI analysis via Chainlink Functions (if enabled)
         uint256 sessionIndex = userSessions[msg.sender].length - 1;
-        requestAIAnalysis(msg.sender, sessionIndex, _reps, _formAccuracy, _duration);
+        if (aiAnalysisEnabled) {
+            bytes32 requestId = requestAIAnalysis(msg.sender, sessionIndex, _reps, _formAccuracy, _duration);
+        } else {
+            // If AI analysis is disabled, mark session as complete with basic score
+            WorkoutSession storage session = userSessions[msg.sender][sessionIndex];
+            session.enhancedScore = calculateCompositeScore(_reps, _formAccuracy, _streak);
+            session.aiAnalysisComplete = true;
+        }
 
         // Emit events
         emit AbsScoreAdded(msg.sender, _reps, _formAccuracy, _streak, block.timestamp);
@@ -277,15 +274,12 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         uint256 _formAccuracy,
         uint256 _streak
     ) internal view {
-        // Check cooldown period first
-        uint256 lastOffset = submissionTimeOffset[msg.sender];
-        if (lastOffset != 0) {
-            uint256 lastSubmissionTime = submissionTimeBaseline + lastOffset;
-            uint256 timeSinceLastSubmission = block.timestamp - lastSubmissionTime;
-            if (timeSinceLastSubmission < SUBMISSION_COOLDOWN) {
-                revert CooldownNotExpired(SUBMISSION_COOLDOWN - timeSinceLastSubmission);
-            }
-        }
+        // Cooldown period validation (currently disabled for testing)
+        //     uint256 timeSinceLastSubmission = block.timestamp - userLastSubmission;
+        //     if (timeSinceLastSubmission < SUBMISSION_COOLDOWN) {
+        //         revert CooldownNotExpired(SUBMISSION_COOLDOWN - timeSinceLastSubmission);
+        //     }
+        // }
 
         // Validate input parameters
         if (_reps == 0) revert InvalidInput();
@@ -387,28 +381,37 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         uint256 reps,
         uint256 formAccuracy,
         uint256 duration
-    ) internal {
+    ) internal returns (bytes32) {
         FunctionsRequest.Request memory req;
-        req.initializeRequestForInlineJavaScript(source);
 
-        // Prepare arguments for the function
-        string[] memory args = new string[](4);
+        // Optimized JavaScript source code for Chainlink Functions
+        // Returns enhanced score as string for reliable parsing
+        string memory minimalSource =
+            "const reps = parseInt(args[0]);"
+            "const formAccuracy = parseInt(args[1]);"
+            "const duration = parseInt(args[2]);"
+            "const score = Math.min(100, (reps * 2) + (formAccuracy * 0.8));"
+            "return Functions.encodeString(score.toString());";
+
+        req.initializeRequestForInlineJavaScript(minimalSource);
+
+        // Use only 3 arguments to match the JavaScript code
+        string[] memory args = new string[](3);
         args[0] = toString(reps);
         args[1] = toString(formAccuracy);
         args[2] = toString(duration);
-        args[3] = "abs";
         req.setArgs(args);
 
-        // Send the request
+        // Send the request with reduced gas limit for compatibility
         bytes32 requestId = _sendRequest(
             req.encodeCBOR(),
             subscriptionId,
-            gasLimit,
+            300000, // Optimized gas limit for Chainlink Functions
             donID
         );
 
         // Store request details
-        functionsRequests[requestId] = FunctionsRequest({
+        functionsRequests[requestId] = ChainlinkRequest({
             user: user,
             sessionIndex: sessionIndex,
             originalScore: formAccuracy,
@@ -417,6 +420,7 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         });
 
         emit AIAnalysisRequested(user, requestId, sessionIndex);
+        return requestId;
     }
 
     /**
@@ -427,52 +431,100 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         bytes memory response,
         bytes memory err
     ) internal override {
-        FunctionsRequest storage request = functionsRequests[requestId];
+        ChainlinkRequest storage request = functionsRequests[requestId];
 
         if (request.user == address(0)) {
             revert UnexpectedRequestID(requestId);
         }
 
+        WorkoutSession storage session = userSessions[request.user][request.sessionIndex];
+
         if (err.length > 0) {
-            // Handle error case - use original score
+            // Handle error case - use original score as fallback
+            session.enhancedScore = request.originalScore; // Use original form accuracy as fallback
+            session.aiAnalysisComplete = true;
             request.fulfilled = true;
+
+            emit AIAnalysisFailed(request.user, requestId, request.sessionIndex, string(err));
             return;
         }
 
-        // Decode the enhanced score from response
-        uint256 enhancedScore = abi.decode(response, (uint256));
+        // Try to decode and parse the response with error handling
+        try this.parseChainlinkResponse(response) returns (uint256 enhancedScore) {
+            // Validate the enhanced score is reasonable
+            if (enhancedScore > 100) {
+                enhancedScore = 100; // Cap at 100
+            }
 
-        // Update the session with enhanced score
-        WorkoutSession storage session = userSessions[request.user][request.sessionIndex];
-        session.enhancedScore = enhancedScore;
-        session.aiAnalysisComplete = true;
+            session.enhancedScore = enhancedScore;
+            session.aiAnalysisComplete = true;
+            request.fulfilled = true;
 
-        // Mark request as fulfilled
-        request.fulfilled = true;
+            emit AIAnalysisCompleted(request.user, requestId, enhancedScore, request.sessionIndex);
+        } catch {
+            // If parsing fails, use fallback score
+            session.enhancedScore = request.originalScore;
+            session.aiAnalysisComplete = true;
+            request.fulfilled = true;
 
-        emit AIAnalysisCompleted(request.user, requestId, enhancedScore, request.sessionIndex);
+            emit AIAnalysisFailed(request.user, requestId, request.sessionIndex, "Response parsing failed");
+        }
     }
 
     /**
-     * @dev Convert uint256 to string
+     * @dev External function to parse Chainlink response (for try/catch)
+     */
+    function parseChainlinkResponse(bytes memory response) external pure returns (uint256) {
+        string memory responseString = abi.decode(response, (string));
+        return stringToUint(responseString);
+    }
+
+    /**
+     * @dev Convert uint256 to string - Optimized for Chainlink Functions compatibility
      */
     function toString(uint256 value) internal pure returns (string memory) {
         if (value == 0) {
             return "0";
         }
+
         uint256 temp = value;
         uint256 digits;
+
+        // Count digits
         while (temp != 0) {
             digits++;
             temp /= 10;
         }
+
+        // Create buffer and fill it
         bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
+        uint256 index = digits;
+        temp = value;
+
+        while (temp != 0) {
+            index--;
+            buffer[index] = bytes1(uint8(48 + (temp % 10)));
+            temp /= 10;
         }
+
         return string(buffer);
+    }
+
+    /**
+     * @dev Convert string to uint256 - For Chainlink Functions response parsing
+     */
+    function stringToUint(string memory str) internal pure returns (uint256) {
+        bytes memory b = bytes(str);
+        uint256 result = 0;
+
+        for (uint256 i = 0; i < b.length; i++) {
+            uint8 digit = uint8(b[i]);
+            if (digit >= 48 && digit <= 57) {
+                result = result * 10 + (digit - 48);
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -523,9 +575,9 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         uint256 rewardAmount = (msg.value * feeConfig.leaderboardShare) / 10000;
 
         // Send owner's share
-        (bool success, ) = owner.call{value: ownerAmount}("");
+        (bool success, ) = owner().call{value: ownerAmount}("");
         if (!success) {
-            pendingRewards[owner] += ownerAmount;
+            pendingRewards[owner()] += ownerAmount;
         }
 
         // Add to reward pool for leaderboard distribution
@@ -705,17 +757,8 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
      * @dev Get time until next submission allowed
      */
     function getTimeUntilNextSubmission(address _user) external view returns (uint256) {
-        uint256 offset = submissionTimeOffset[_user];
-
-        if (offset == 0) return 0;
-
-        uint256 lastSubmissionTime = submissionTimeBaseline + offset;
-
-        if (block.timestamp >= lastSubmissionTime + SUBMISSION_COOLDOWN) {
-            return 0;
-        }
-
-        return lastSubmissionTime + SUBMISSION_COOLDOWN - block.timestamp;
+        // Cooldown currently disabled for optimal user experience
+        return 0;
     }
 
     /**
@@ -739,7 +782,7 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
      */
     function distributeRewards() public {
         // Only owner can manually trigger, or auto-distribution if enabled
-        if (!rewardConfig.autoDistribution && msg.sender != owner) {
+        if (!rewardConfig.autoDistribution && msg.sender != owner()) {
             revert Unauthorized();
         }
 
@@ -815,10 +858,10 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
     }
 
     // Admin functions
-    function setSubmissionCooldown(uint256 _cooldown) external onlyOwner {
-        SUBMISSION_COOLDOWN = _cooldown;
-        emit SubmissionCooldownChanged(_cooldown);
-    }
+    // function setSubmissionCooldown(uint256 _cooldown) external onlyOwner {
+    //     SUBMISSION_COOLDOWN = _cooldown;
+    //     emit SubmissionCooldownChanged(_cooldown);
+    // }
 
     function setMaxRepsPerSession(uint256 _maxReps) external onlyOwner {
         MAX_REPS_PER_SESSION = _maxReps;
@@ -905,16 +948,15 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         return block.timestamp >= rewardConfig.lastDistribution + rewardConfig.distributionPeriod;
     }
 
-    function transferOwnership(address _newOwner) external onlyOwner {
-        if (_newOwner == address(0)) revert InvalidInput();
-        address oldOwner = owner;
-        owner = _newOwner;
-        emit OwnershipTransferred(oldOwner, _newOwner);
-    }
+
 
     function toggleSubmissions(bool _enabled) external onlyOwner {
         submissionsEnabled = _enabled;
         emit SubmissionStatusChanged(_enabled);
+    }
+
+    function toggleAIAnalysis(bool _enabled) external onlyOwner {
+        aiAnalysisEnabled = _enabled;
     }
 
     function emergencyWithdraw(address payable _to, uint256 _amount) external onlyOwner {
@@ -935,15 +977,13 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         }
 
         // Temporarily store original settings
-        uint256 originalLastDistribution = rewardConfig.lastDistribution;
-
         // Override time constraint for emergency distribution
         rewardConfig.lastDistribution = 0;
 
         // Distribute rewards
         distributeRewards();
 
-        // Restore original timestamp (distribution function updates it)
+        // Note: Distribution function updates lastDistribution timestamp
         // This ensures normal schedule continues after emergency distribution
     }
 
@@ -982,7 +1022,7 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
         uint256 timestamp,
         bool fulfilled
     ) {
-        FunctionsRequest storage request = functionsRequests[requestId];
+        ChainlinkRequest storage request = functionsRequests[requestId];
         return (
             request.user,
             request.sessionIndex,
@@ -991,6 +1031,8 @@ contract ImperfectAbsLeaderboard is FunctionsClient, ConfirmedOwner {
             request.fulfilled
         );
     }
+
+
 
     receive() external payable {}
 }

@@ -21,6 +21,7 @@
     "test:env": "node scripts/test-env.js"
   },
   "dependencies": {
+    "@chainlink/contracts": "^1.4.0",
     "@chainlink/functions-toolkit": "^0.3.2",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
