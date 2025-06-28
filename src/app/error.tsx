@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -50,13 +51,13 @@ export default function Error({ error, reset }: ErrorProps) {
               </button>
 
               <div className="mt-4">
-                <a
+                <Link
                   href="/"
                   className="inline-block bg-green-600 text-white font-bold text-lg px-6 py-3 border-4 border-black uppercase transition-all duration-200 hover:transform hover:translate-y-1 no-underline"
                   style={{ boxShadow: "0.5rem 0.5rem 0 0 black" }}
                 >
                   🏠 Go Home
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -71,20 +72,20 @@ export default function Error({ error, reset }: ErrorProps) {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 gap-3">
-            <a
+            <Link
               href="/#workout"
               className="bg-green-600 text-white font-bold text-sm px-4 py-3 border-4 border-black uppercase transition-all duration-200 hover:transform hover:translate-y-1 text-center no-underline block"
               style={{ boxShadow: "0.25rem 0.25rem 0 0 black" }}
             >
               🏋️ Start New Workout
-            </a>
-            <a
+            </Link>
+            <Link
               href="/#leaderboard"
               className="bg-yellow-500 text-black font-bold text-sm px-4 py-3 border-4 border-black uppercase transition-all duration-200 hover:transform hover:translate-y-1 text-center no-underline block"
               style={{ boxShadow: "0.25rem 0.25rem 0 0 black" }}
             >
               🏆 View Leaderboard
-            </a>
+            </Link>
           </div>
         </div>
 

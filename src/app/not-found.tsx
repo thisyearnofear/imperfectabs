@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 export default function NotFound() {
   return (
@@ -27,12 +28,12 @@ export default function NotFound() {
             </p>
 
             <div className="space-y-4">
-              <a
+              <Link
                 href="/"
                 className="inline-block abs-btn-primary bg-blue-600 text-white"
               >
                 🏠 Go Home
-              </a>
+              </Link>
 
               <div className="text-sm text-gray-500 font-mono">
                 Or use the navigation above to find what you need.
@@ -47,18 +48,18 @@ export default function NotFound() {
             Quick Links
           </h3>
           <div className="grid grid-cols-1 gap-3">
-            <a
+            <Link
               href="/#workout"
               className="abs-btn-primary bg-green-600 text-white text-sm py-2"
             >
               🏋️ Start Workout
-            </a>
-            <a
+            </Link>
+            <Link
               href="/#leaderboard"
               className="abs-btn-primary bg-yellow-500 text-black text-sm py-2"
             >
               🏆 View Leaderboard
-            </a>
+            </Link>
           </div>
         </div>
       </div>
