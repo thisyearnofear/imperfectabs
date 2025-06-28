@@ -62,7 +62,7 @@ function HomeContent() {
                   IMPERFECT ABS
                 </h1>
                 <p className="text-xs md:text-sm font-mono font-bold text-gray-700 uppercase">
-                  AI-POWERED FORM ANALYSIS
+                  BUILD YOUR CORE ONCHAIN
                 </p>
               </div>
             </div>

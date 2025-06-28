@@ -294,7 +294,7 @@ export default function ImprovedWorkoutTracker() {
   // Get status message
   const getStatusMessage = () => {
     if (!workoutState.isActive && !workoutState.hasCompletedWorkout) {
-      return "Ready to start your abs workout";
+      return "perfectly imperfect";
     }
 
     if (workoutState.isInitializing) {
@@ -310,8 +310,11 @@ export default function ImprovedWorkoutTracker() {
     <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
       <div className="abs-card-brutal p-4 mb-4">
-        <h1 className="text-2xl md:text-3xl font-black text-center uppercase">
-          💪 Imperfect Abs Tracker
+        <h1
+          className="text-2xl md:text-3xl font-black text-center uppercase text-black drop-shadow-lg"
+          style={{ textShadow: "2px 2px 0 #fff, 4px 4px 0 #000" }}
+        >
+          Tracker
         </h1>
         <p className="text-center text-black font-bold mt-2">
           {getStatusMessage()}
