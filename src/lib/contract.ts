@@ -254,7 +254,8 @@ export const submitWorkoutSession = async (
 
     // Log all events
     console.log("📋 Transaction events:");
-    receipt.events?.forEach((event, index) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    receipt.events?.forEach((event: any, index: number) => {
       console.log(`  ${index + 1}. ${event.event || 'Unknown Event'}`);
       if (event.event === 'AIAnalysisRequested') {
         console.log(`     🔗 Chainlink Request ID: ${event.args?.requestId}`);

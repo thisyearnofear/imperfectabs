@@ -12,6 +12,8 @@ interface ChainlinkRequest {
   enhancedScore?: number;
   timestamp: number;
   transactionHash?: string;
+  fulfillmentTxHash?: string;
+  error?: string;
 }
 
 interface ChainlinkEnhancementProps {
@@ -107,7 +109,8 @@ export default function ChainlinkEnhancement({
       console.log("✅ Transaction confirmed in block:", receipt.blockNumber);
       console.log(
         "📋 Receipt events:",
-        receipt.events?.map((e) => e.event)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        receipt.events?.map((e: any) => e.event)
       );
 
       // Extract the actual Chainlink request ID from events
@@ -115,7 +118,8 @@ export default function ChainlinkEnhancement({
 
       // Look for AIAnalysisRequested event
       const aiAnalysisEvents = receipt.events?.filter(
-        (event) => event.event === "AIAnalysisRequested"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (event: any) => event.event === "AIAnalysisRequested"
       );
 
       if (aiAnalysisEvents && aiAnalysisEvents.length > 0) {
@@ -125,7 +129,8 @@ export default function ChainlinkEnhancement({
         console.log(
           "⚠️ No AIAnalysisRequested event found, checking all events..."
         );
-        receipt.events?.forEach((event, index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        receipt.events?.forEach((event: any, index: number) => {
           console.log(`Event ${index}:`, {
             event: event.event,
             args: event.args,
