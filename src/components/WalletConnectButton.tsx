@@ -102,10 +102,10 @@ export default function WalletConnectButton({
       return `${baseClass} text-sm px-4 py-2 bg-white text-black hover:bg-gray-100 ${className}`;
     }
 
-    // Primary variant
+    // Primary variant - ensure high contrast for unconnected state
     const statusColor = isConnected
       ? "bg-green-600 text-white hover:bg-green-700"
-      : "bg-black text-white hover:bg-gray-800";
+      : "bg-black text-white hover:bg-gray-800 !text-white"; // Force white text
 
     return `${baseClass} text-lg px-6 py-3 ${statusColor} ${className}`;
   };
@@ -217,10 +217,42 @@ export default function WalletConnectButton({
       </button>
 
       {showWalletOptions && !isConnected && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setShowWalletOptions(false)}
-        />
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setShowWalletOptions(false)}
+          />
+          <div
+            className="absolute top-full left-0 right-0 mt-2 bg-white border-4 border-black z-50"
+            style={{ boxShadow: "var(--shadow-brutal)" }}
+          >
+            <div className="p-2 space-y-2">
+              <button
+                onClick={() => handleConnect("metamask")}
+                disabled={isConnecting}
+                className="w-full abs-btn-primary bg-orange-500 text-white text-sm py-2 px-3"
+              >
+                🦊 METAMASK
+              </button>
+
+              <button
+                onClick={() => handleConnect("core")}
+                disabled={isConnecting}
+                className="w-full abs-btn-primary bg-red-600 text-white text-sm py-2 px-3"
+              >
+                🏔️ CORE WALLET
+              </button>
+
+              <button
+                onClick={() => handleConnect("walletconnect")}
+                disabled={isConnecting}
+                className="w-full abs-btn-primary bg-blue-600 text-white text-sm py-2 px-3"
+              >
+                🔗 WALLETCONNECT
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

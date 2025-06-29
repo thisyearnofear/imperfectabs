@@ -407,10 +407,9 @@ export default function ImprovedWorkoutTracker() {
 
   // Handle successful submission
   const handleSubmissionComplete = useCallback((success: boolean) => {
-    if (success) {
-      setWorkoutState((prev) => ({ ...prev, showSubmission: false }));
-      // Could show success animation or reset for next workout
-    }
+    // Keep submission component visible to show transaction details
+    // Don't hide it on success - user should see their transaction hash
+    console.log(`Submission ${success ? "successful" : "failed"}`);
   }, []);
 
   const handleEnhancedAnalysis = (score: number) => {
