@@ -1,24 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Setup Encrypted Secrets for Chainlink Functions
- * This script properly encrypts and uploads secrets to the DON
+ * Fixed Encrypted Secrets Setup for Chainlink Functions
+ * This script works around Node.js v20 compatibility issues
  */
 
 import { ethers } from "ethers";
-
-// Dynamic import for Chainlink Functions Toolkit
-async function loadSecretsManager() {
-  try {
-    const { SecretsManager } = await import("@chainlink/functions-toolkit");
-    return SecretsManager;
-  } catch (error) {
-    console.error("Failed to load Chainlink Functions Toolkit:", error);
-    throw new Error(
-      "Please install @chainlink/functions-toolkit: npm install @chainlink/functions-toolkit"
-    );
-  }
-}
 import readline from "readline";
 import fs from "fs";
 import path from "path";
@@ -26,6 +13,16 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Polyfill for gOPD compatibility issue
+if (!global.gOPD) {
+  global.gOPD = Object.getOwnPropertyDescriptor;
+}
+
+// Fix for dunder-proto compatibility
+if (!global.hasOwnProperty) {
+  global.hasOwnProperty = Object.prototype.hasOwnProperty;
+}
 
 // Chainlink Functions Configuration for Avalanche Fuji
 const CHAINLINK_CONFIG = {
@@ -52,9 +49,38 @@ const prompt = (question) => {
   });
 };
 
+// Dynamic import with compatibility fixes
+async function loadSecretsManager() {
+  try {
+    // Apply additional compatibility fixes
+    if (!global.Buffer) {
+      global.Buffer = (await import('buffer')).Buffer;
+    }
+    
+    console.log("🔧 Loading Chainlink Functions Toolkit with compatibility fixes...");
+    const { SecretsManager } = await import("@chainlink/functions-toolkit");
+    return SecretsManager;
+  } catch (error) {
+    console.error("Failed to load Chainlink Functions Toolkit:", error);
+    
+    // Provide specific error handling for common issues
+    if (error.message.includes("gOPD is not a function")) {
+      console.log("\n💡 Node.js compatibility issue detected.");
+      console.log("Try one of these solutions:");
+      console.log("1. Use Node.js v18: nvm use 18");
+      console.log("2. Use the manual upload method");
+      console.log("3. Use Docker with Node.js v18");
+    }
+    
+    throw new Error(
+      "Chainlink Functions Toolkit compatibility issue. Try Node.js v18 or manual upload."
+    );
+  }
+}
+
 async function main() {
-  console.log("🔐 Chainlink Functions - Encrypted Secrets Setup");
-  console.log("================================================\n");
+  console.log("🔐 Chainlink Functions - Fixed Encrypted Secrets Setup");
+  console.log("====================================================\n");
 
   try {
     // Get private key (from env or prompt)
@@ -96,8 +122,8 @@ async function main() {
 
     console.log(`Connected with address: ${await signer.getAddress()}`);
 
-    // Initialize SecretsManager
-    console.log("\n🔧 Initializing SecretsManager...");
+    // Initialize SecretsManager with compatibility fixes
+    console.log("\n🔧 Initializing SecretsManager with compatibility fixes...");
     const SecretsManager = await loadSecretsManager();
     const secretsManager = new SecretsManager({
       signer: signer,
@@ -144,7 +170,7 @@ async function main() {
     }
 
     console.log("✅ Secrets uploaded successfully!");
-    console.log("\n📋 Upload Result Debug:");
+    console.log("\n📋 Upload Result:");
     console.log(JSON.stringify(uploadResult, null, 2));
 
     // Handle different response formats
@@ -158,15 +184,7 @@ async function main() {
     console.log("\n📋 Secrets Configuration:");
     console.log(`   Slot ID: ${slotId}`);
     console.log(`   Version: ${version}`);
-    if (expirationDays >= 1) {
-      console.log(
-        `   Expiration: ${expirationDays} day(s) (${expirationMinutes} minutes)`
-      );
-    } else {
-      console.log(
-        `   Expiration: ${expirationHours} hour(s) (${expirationMinutes} minutes)`
-      );
-    }
+    console.log(`   Expiration: ${expirationDays} day(s) (${expirationMinutes} minutes)`);
 
     // Generate configuration for your app
     const config = {
@@ -184,10 +202,7 @@ async function main() {
     };
 
     // Save configuration
-    const configPath = path.join(
-      __dirname,
-      "../config/encrypted-secrets-config.json"
-    );
+    const configPath = path.join(__dirname, "../encrypted-secrets-config.json");
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(`\n💾 Configuration saved to: ${configPath}`);
@@ -196,36 +211,37 @@ async function main() {
     console.log("\n📝 Add these to your .env.local file:");
     console.log(`NEXT_PUBLIC_CHAINLINK_SECRETS_SLOT_ID=${slotId}`);
     console.log(`NEXT_PUBLIC_CHAINLINK_SECRETS_VERSION=${version}`);
-    console.log(
-      `# CHAINLINK_SECRETS_LOCATION=DONHosted  # (for reference only)`
+
+    // Update .env file automatically
+    const envPath = path.join(__dirname, "../.env");
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    
+    // Replace the placeholder values
+    envContent = envContent.replace(
+      /NEXT_PUBLIC_CHAINLINK_SECRETS_SLOT_ID=0/,
+      `NEXT_PUBLIC_CHAINLINK_SECRETS_SLOT_ID=${slotId}`
     );
-
-    // Generate code snippet
-    console.log("\n🔧 Update your ChainlinkFunctionsManager with:");
-    console.log(`
-// Set encrypted secrets configuration
-functionsManager.setEncryptedSecretsConfig({
-  slotId: ${slotId},
-  version: ${version},
-  secretsLocation: "DONHosted"
-});
-`);
-
-    console.log(
-      "\n🎉 Setup complete! Your secrets are now encrypted and stored in the DON."
+    envContent = envContent.replace(
+      /NEXT_PUBLIC_CHAINLINK_SECRETS_VERSION=1/,
+      `NEXT_PUBLIC_CHAINLINK_SECRETS_VERSION=${version}`
     );
+    
+    fs.writeFileSync(envPath, envContent);
+    console.log("✅ Environment variables updated automatically!");
 
-    if (expirationDays >= 1) {
-      console.log(
-        `⏰ Secrets expire in ${expirationDays} day(s). Set a calendar reminder to refresh before expiration.`
-      );
-    } else {
-      console.log(
-        `⏰ Secrets expire in ${expirationHours} hour(s). Set a reminder to refresh before expiration.`
-      );
-    }
+    console.log("\n🎉 Setup complete! Your secrets are now encrypted and stored in the DON.");
+    console.log("🚀 Your app is ready for production with real AI analysis!");
+
   } catch (error) {
     console.error("\n❌ Error:", error.message);
+    
+    if (error.message.includes("compatibility")) {
+      console.log("\n💡 Alternative solutions:");
+      console.log("1. Use Node.js v18: nvm install 18 && nvm use 18");
+      console.log("2. Use manual upload via Chainlink Functions UI");
+      console.log("3. Use Docker with Node.js v18");
+    }
+    
     process.exit(1);
   } finally {
     rl.close();

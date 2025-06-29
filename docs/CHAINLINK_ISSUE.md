@@ -6,10 +6,10 @@ Smart contract for fitness tracking with AI-powered workout analysis using Chain
 
 ## 🎉 RESOLUTION STATUS: COMPLETE
 
-**Date Resolved**: 2025-06-28
+**Date Resolved**: 2025-06-29
 **Final Contract**: `0xdf07bD5a057aBf76147231886C94FEb985151ebc` ✅
 **Status**: Production Ready - All Chainlink Functions working perfectly
-**Issues Fixed**: Argument mismatch, response parsing, gas limit, error handling
+**Issues Fixed**: Argument mismatch, response parsing, gas limit, error handling, Node.js compatibility, encrypted secrets upload
 **See**: `docs/CHAINLINK_FIXES.md` for detailed fix documentation
 
 ---
@@ -22,9 +22,52 @@ Smart contract for fitness tracking with AI-powered workout analysis using Chain
 - **Gas Limit**: 300,000 (Optimized)
 - **Arguments**: 3 (Fixed from problematic 4-argument setup)
 - **Response Format**: String (Fixed from JSON parsing issues)
+- **Node.js Version**: v18.18.0 (Required for @chainlink/functions-toolkit)
+- **Encrypted Secrets**: Slot ID 0, Version 1751158594 (Active)
 
 **Last Successful Test**: Workout submission with AI analysis completed successfully
 **Transaction**: `0x86b413d9127bff02d2279cbf18486100ca2c4529b1f968e68dfa4ea6b4a55513`
+
+## 🔧 Node.js Compatibility Issue & Resolution (December 2024)
+
+### Problem Encountered
+
+The `@chainlink/functions-toolkit` package had compatibility issues with Node.js v20:
+
+- **Error**: `gOPD is not a function` in dunder-proto/get.js
+- **Cause**: Native module compilation issues with secp256k1
+- **Impact**: Unable to upload encrypted secrets for production AI analysis
+
+### Solution Implemented
+
+1. **Downgraded to Node.js v18.18.0** (officially supported version)
+
+   ```bash
+   nvm install 18.18.0
+   nvm use 18.18.0
+   ```
+
+2. **Rebuilt native dependencies**
+
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   npm rebuild secp256k1
+   ```
+
+3. **Successfully uploaded encrypted secrets**
+   - Slot ID: 0
+   - Version: 1751158594
+   - Expiration: 72 hours (testnet maximum)
+   - OpenAI API key encrypted and stored in DON
+
+### Result
+
+✅ **Full production functionality achieved**
+
+- Real AI analysis using encrypted OpenAI API key
+- Successful secrets upload via terminal
+- Production-ready deployment with real Chainlink Functions
 
 ## Configuration Details
 

@@ -3,21 +3,48 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Webpack configuration to handle build issues
   webpack: (config, { dev, isServer }) => {
-    // Fix for WalletConnect dependencies
+    // Fix for WalletConnect and Chainlink Functions dependencies
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       net: false,
       tls: false,
       crypto: false,
+      path: false,
+      os: false,
+      stream: false,
+      util: false,
+      url: false,
+      assert: false,
+      http: false,
+      https: false,
+      zlib: false,
+      ganache: false,
+      child_process: false,
+      worker_threads: false,
+      cluster: false,
+      dgram: false,
+      dns: false,
+      readline: false,
+      repl: false,
+      vm: false,
     };
 
-    // Handle pino-pretty in client-side builds
+    // Handle problematic packages in client-side builds
     if (!isServer) {
       config.resolve.alias = {
         ...config.resolve.alias,
         "pino-pretty": false,
+        "ganache": false,
       };
+    }
+
+    // Exclude problematic packages from bundling
+    config.externals = config.externals || [];
+    if (!isServer) {
+      config.externals.push({
+        "ganache": "ganache",
+      });
     }
 
     return config;
@@ -27,8 +54,6 @@ const nextConfig: NextConfig = {
   experimental: {
     // Enable modern bundling
     optimizePackageImports: ["@walletconnect/ethereum-provider"],
-    // Ignore style registry errors during build
-    esmExternals: "loose",
     // Disable problematic static workers
     webVitalsAttribution: ["CLS", "LCP"],
   },

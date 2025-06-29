@@ -2,14 +2,37 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
-import {
-  ChainlinkFunctionsManager,
-  createFunctionsManager,
-  formatLinkAmount,
-  estimateRequestCost,
-} from "../lib/chainlink-functions";
 import { useWallet } from "../contexts/WalletContext";
 import LoadingState from "./LoadingState";
+
+// Type definition to avoid import issues
+interface ChainlinkFunctionsManager {
+  setSigner(signer: ethers.Signer): void;
+  getLinkBalance(address: string): Promise<string>;
+  createSubscription(): Promise<number>;
+  fundSubscription(subscriptionId: number, amount: string): Promise<void>;
+  getSubscriptionDetails(subscriptionId: number): Promise<{
+    balance: string;
+    owner?: string;
+    consumers: string[];
+  } | null>;
+  requestAIAnalysis(
+    sessionData: unknown,
+    subscriptionId?: number
+  ): Promise<{
+    requestId: string;
+    subscriptionId: number;
+    status: "pending";
+    sessionData: unknown;
+    timestamp: number;
+    transactionHash?: string;
+  }>;
+  setEncryptedSecretsConfig(config: {
+    slotId: number;
+    version: number;
+    secretsLocation: "DONHosted";
+  }): void;
+}
 
 interface ChainlinkRequest {
   requestId: string;
@@ -53,7 +76,7 @@ export default function ChainlinkEnhancement({
 
   // Chainlink Functions configuration
   const MIN_LINK_BALANCE = 2; // Minimum LINK tokens needed
-  const REQUEST_COST = estimateRequestCost();
+  const REQUEST_COST = "0.1"; // Estimated cost in LINK
 
   const initializeChainlinkFunctions = useCallback(async () => {
     if (!isConnected || !signer || !provider) return;
@@ -61,7 +84,15 @@ export default function ChainlinkEnhancement({
     try {
       setSetupStatus("checking");
 
-      const manager = createFunctionsManager(provider);
+      // Use the production implementation with API routes
+      console.log("Loading production Chainlink Functions implementation...");
+      const productionFunctions = await import(
+        "../lib/chainlink-functions-production"
+      );
+      const { createFunctionsManagerProduction } = productionFunctions;
+      const manager = createFunctionsManagerProduction(
+        provider
+      ) as ChainlinkFunctionsManager;
       manager.setSigner(signer);
 
       // Configure encrypted secrets (set these from environment variables)
@@ -78,8 +109,9 @@ export default function ChainlinkEnhancement({
         console.log("✅ Encrypted secrets configured for AI analysis");
       } else {
         console.log(
-          "⚠️ No encrypted secrets configured - AI analysis will use basic algorithm"
+          "⚠️ No encrypted secrets configured - will work with basic functionality"
         );
+        console.log("💡 To enable AI analysis, run: npm run setup:secrets");
       }
 
       setFunctionsManager(manager);
@@ -111,7 +143,8 @@ export default function ChainlinkEnhancement({
       // Check if we have a subscription ID from environment or config
       const savedSubId =
         process.env.NEXT_PUBLIC_CHAINLINK_SUBSCRIPTION_ID ||
-        localStorage.getItem("chainlink-subscription-id");
+        localStorage.getItem("chainlink-subscription-id") ||
+        "15675"; // Your working subscription ID
 
       if (savedSubId) {
         const subId = parseInt(savedSubId);
@@ -375,9 +408,7 @@ export default function ChainlinkEnhancement({
                   : "bg-gray-500 text-gray-300 cursor-not-allowed"
               }`}
             >
-              {`🤖 Get Professional Analysis (~${formatLinkAmount(
-                REQUEST_COST
-              )})`}
+              {`🤖 Get Professional Analysis (~${REQUEST_COST} LINK)`}
             </button>
           )}
 
@@ -396,7 +427,7 @@ export default function ChainlinkEnhancement({
                 onClick={createSubscription}
                 className="w-full abs-btn-primary bg-blue-600 text-white"
               >
-                🚀 Setup AI Analysis Subscription ({formatLinkAmount("2.0")})
+                🚀 Setup AI Analysis Subscription (2.0 LINK)
               </button>
               <p className="text-xs opacity-75">
                 One-time setup • Requires LINK tokens for AI requests

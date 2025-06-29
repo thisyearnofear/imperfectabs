@@ -48,10 +48,20 @@ next-env.d.ts
 .env.production.local
 
 # Chainlink configuration
+config/chainlink-config.json
+config/encrypted-secrets-config.json
+config/encrypted-secrets-production.json
+config/encrypted-secrets-manual.json
+config/chainlink-functions-config.json
+config/chainlink-direct-config.json
+
+# Legacy config files (in case they're created in root)
 chainlink-config.json
 encrypted-secrets-config.json
 encrypted-secrets-production.json
+encrypted-secrets-manual.json
 chainlink-functions-config.json
+chainlink-direct-config.json
 
 # Private keys and secrets
 *.key
@@ -62,6 +72,7 @@ private-key.txt
 cache/
 broadcast/
 out/
+lib/ (except lib/forge-std)
 
 # Sensitive deployment data
 *.json.bak
