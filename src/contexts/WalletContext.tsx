@@ -13,6 +13,16 @@ import { connectWallet as connectWalletLib } from "../lib/contract";
 import { CONTRACT_CONFIG } from "../lib/contractIntegration";
 import EthereumProvider from "@walletconnect/ethereum-provider";
 import { QRCodeDisplay } from "../components/WalletConnectModal";
+import {
+  processWalletConnection,
+  saveWalletConnection,
+  parseWalletError,
+} from "../utils/walletUtils";
+import {
+  cleanupWalletConnect,
+  getWalletConnectProvider,
+  createConnectionTimeout,
+} from "../utils/walletConnectUtils";
 
 interface WalletState {
   isConnected: boolean;
@@ -105,24 +115,16 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       const signer = await connectWalletLib();
       const provider = signer.provider as ethers.providers.Web3Provider;
-      const address = await signer.getAddress();
-      const network = await provider.getNetwork();
 
-      setState((prev) => ({
-        ...prev,
-        isConnected: true,
-        address,
+      const walletState = await processWalletConnection(
         provider,
         signer,
-        chainId: network.chainId,
-        connectedWallet: "metamask",
-        error: null,
-      }));
+        "metamask"
+      );
+      setState((prev) => ({ ...prev, ...walletState }));
 
-      await updateBalance(provider, address);
-      localStorage.setItem("walletConnected", "true");
-      localStorage.setItem("walletAddress", address);
-      localStorage.setItem("connectedWallet", "metamask");
+      await updateBalance(provider, walletState.address);
+      saveWalletConnection(walletState.address, "metamask");
     } catch (error: unknown) {
       throw error;
     }
@@ -136,80 +138,72 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       if (!projectId) {
         throw new Error("WalletConnect Project ID not configured");
       }
-      console.log("✅ Project ID found:", projectId);
 
-      // Disconnect existing provider if any
-      if (walletConnectProvider) {
-        console.log("🔄 Disconnecting existing provider...");
-        await walletConnectProvider.disconnect();
-        setWalletConnectProvider(null);
-      }
-
-      console.log("🚀 Initializing new WalletConnect provider...");
-      const wcProvider = await EthereumProvider.init({
-        projectId,
-        chains: [43113], // Avalanche Fuji
-        showQrModal: false, // We'll handle our own modal
-        metadata: {
-          name: "Imperfect Abs",
-          description: "AI-Powered Core Workout Tracker",
-          url: window.location.origin,
-          icons: ["https://walletconnect.com/walletconnect-logo.png"],
-        },
+      // Clean up existing provider
+      await cleanupWalletConnect({
+        provider: walletConnectProvider || undefined,
+        clearLocalStorage: true,
+        clearGlobalProvider: true,
       });
+      setWalletConnectProvider(null);
 
-      console.log("✅ WalletConnect provider initialized");
+      // Clear modal state
+      setIsModalOpen(false);
+      setModalUri(null);
+      setIsModalConnecting(false);
+
+      // Get or create provider using singleton pattern
+      const wcProvider = await getWalletConnectProvider(projectId);
       setWalletConnectProvider(wcProvider);
 
-      // Set up event listeners
+      // Set up fresh event listeners
       wcProvider.on("display_uri", (uri: string) => {
-        console.log("📱 WalletConnect URI received:", uri);
+        console.log("📱 URI received:", uri);
         setModalUri(uri);
         setIsModalOpen(true);
       });
 
       wcProvider.on("connect", () => {
-        console.log("🎉 WalletConnect connected");
+        console.log("🎉 Connected");
         setIsModalConnecting(true);
       });
 
       wcProvider.on("disconnect", () => {
-        console.log("👋 WalletConnect disconnected");
+        console.log("👋 Disconnected");
         setIsModalOpen(false);
         setModalUri(null);
         setIsModalConnecting(false);
       });
 
-      // Show modal immediately
-      console.log("📱 Opening modal...");
+      // Show modal and enable with timeout
       setIsModalOpen(true);
-      setIsModalConnecting(false);
-      setModalUri(null); // Clear any old URI
 
-      // Enable the provider - this should trigger display_uri event
-      console.log("🔌 Enabling WalletConnect provider...");
-      await wcProvider.enable();
+      const connectionTimeout = createConnectionTimeout(() => {
+        setIsModalOpen(false);
+        setModalUri(null);
+        setIsModalConnecting(false);
+      });
+
+      try {
+        await wcProvider.enable();
+        clearTimeout(connectionTimeout);
+      } catch (error) {
+        clearTimeout(connectionTimeout);
+        throw error;
+      }
 
       const ethersProvider = new ethers.providers.Web3Provider(wcProvider);
       const signer = ethersProvider.getSigner();
-      const address = await signer.getAddress();
-      const network = await ethersProvider.getNetwork();
 
-      setState((prev) => ({
-        ...prev,
-        isConnected: true,
-        address,
-        provider: ethersProvider,
+      const walletState = await processWalletConnection(
+        ethersProvider,
         signer,
-        chainId: network.chainId,
-        connectedWallet: "walletconnect",
-        error: null,
-      }));
+        "walletconnect"
+      );
+      setState((prev) => ({ ...prev, ...walletState }));
 
-      await updateBalance(ethersProvider, address);
-      localStorage.setItem("walletConnected", "true");
-      localStorage.setItem("walletAddress", address);
-      localStorage.setItem("connectedWallet", "walletconnect");
+      await updateBalance(ethersProvider, walletState.address);
+      saveWalletConnection(walletState.address, "walletconnect");
 
       setIsModalOpen(false);
       setModalUri(null);
@@ -220,7 +214,22 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setIsModalConnecting(false);
       throw error;
     }
-  }, [updateBalance]);
+  }, [updateBalance, walletConnectProvider]);
+
+  // Cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (walletConnectProvider) {
+        try {
+          walletConnectProvider.removeListener("display_uri", () => {});
+          walletConnectProvider.removeListener("connect", () => {});
+          walletConnectProvider.removeListener("disconnect", () => {});
+        } catch (e) {
+          console.log("Cleanup on unmount error (expected):", e);
+        }
+      }
+    };
+  }, [walletConnectProvider]);
 
   const connectCore = useCallback(async () => {
     try {
@@ -237,7 +246,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       await window.ethereum.request({ method: "eth_requestAccounts" });
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
-      const address = await signer.getAddress();
       const network = await provider.getNetwork();
 
       // Ensure we're on Avalanche network
@@ -248,21 +256,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         });
       }
 
-      setState((prev) => ({
-        ...prev,
-        isConnected: true,
-        address,
+      const walletState = await processWalletConnection(
         provider,
         signer,
-        chainId: network.chainId,
-        connectedWallet: "core",
-        error: null,
-      }));
+        "core"
+      );
+      setState((prev) => ({ ...prev, ...walletState }));
 
-      await updateBalance(provider, address);
-      localStorage.setItem("walletConnected", "true");
-      localStorage.setItem("walletAddress", address);
-      localStorage.setItem("connectedWallet", "core");
+      await updateBalance(provider, walletState.address);
+      saveWalletConnection(walletState.address, "core");
     } catch (error: unknown) {
       throw error;
     }
@@ -298,15 +300,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             }
         }
       } catch (error: unknown) {
-        let errorMessage = "Failed to connect wallet";
-
-        if ((error as { code?: number }).code === 4001) {
-          errorMessage = "Connection rejected by user";
-        } else if ((error as { code?: number }).code === -32002) {
-          errorMessage = "Connection request already pending";
-        } else if ((error as { message?: string }).message) {
-          errorMessage = (error as { message: string }).message;
-        }
+        const errorMessage = parseWalletError(error);
 
         setState((prev) => ({
           ...prev,
