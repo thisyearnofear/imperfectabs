@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import type { Results } from "@mediapipe/pose";
-// MediaPipe imports - using dynamic imports to avoid SSR issues
-// import { POSE_CONNECTIONS } from "@mediapipe/pose";
-// import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { AbsExerciseDetector, ExerciseState } from "../lib/pose-detection";
 import { useWallet } from "../contexts/WalletContext";
 import { useContract } from "../contexts/ContractContext";
@@ -30,24 +27,16 @@ interface WorkoutState {
   showSubmission: boolean;
 }
 
-// Dynamic MediaPipe imports to avoid SSR issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let drawConnectors: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-let drawLandmarks: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-let POSE_CONNECTIONS: any = null;
+// Note: MediaPipe drawing utilities are currently disabled to avoid SSR issues
+// Simple pose visualization is used instead (see pose rendering section below)
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const loadMediaPipeUtils = async () => {
-  if (!drawConnectors) {
-    const drawingUtils = await import("@mediapipe/drawing_utils");
-    const pose = await import("@mediapipe/pose");
-    drawConnectors = drawingUtils.drawConnectors;
-    drawLandmarks = drawingUtils.drawLandmarks;
-    POSE_CONNECTIONS = pose.POSE_CONNECTIONS;
-  }
-};
+// Type for MediaPipe landmark
+interface PoseLandmark {
+  x: number;
+  y: number;
+  z: number;
+  visibility?: number;
+}
 
 export default function ImprovedWorkoutTracker() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -212,31 +201,10 @@ export default function ImprovedWorkoutTracker() {
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-              // Temporarily disable MediaPipe drawing to fix compilation
-              // TODO: Re-enable once MediaPipe imports are working
-              /*
-              // Load MediaPipe utils if not already loaded
-              if (!drawLandmarks) {
-                await loadMediaPipeUtils();
-              }
-
-              if (drawLandmarks && drawConnectors && POSE_CONNECTIONS) {
-                drawLandmarks(ctx, results.poseLandmarks, {
-                  color: "#FF0000",
-                  lineWidth: 2,
-                });
-                drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-                  color: "#00FF00",
-                  lineWidth: 4,
-                });
-              }
-              */
-
-              // Simple pose visualization without MediaPipe drawing utils
+              // Simple pose visualization using basic canvas drawing
               if (results.poseLandmarks) {
                 ctx.fillStyle = "#FF0000";
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                results.poseLandmarks.forEach((landmark: any) => {
+                results.poseLandmarks.forEach((landmark: PoseLandmark) => {
                   const x = landmark.x * canvas.width;
                   const y = landmark.y * canvas.height;
                   ctx.beginPath();
