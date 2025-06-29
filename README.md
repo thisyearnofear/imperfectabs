@@ -40,10 +40,10 @@ A **hybrid on-chain/off-chain AI fitness platform** that combines real-time pose
 
 ## 📚 Documentation
 
-- **[Hackathon Guide](./docs/HACKATHON_GUIDE.md)** - Complete feature breakdown and architecture
-- **[Encrypted Secrets Setup](./docs/ENCRYPTED_SECRETS_SETUP.md)** - ⚠️ **Required for OpenAI integration**
-- **[Chainlink Integration Fixes](./docs/CHAINLINK_FIXES.md)** - How we resolved all integration issues
-- **[Original Issue Analysis](./docs/CHAINLINK_ISSUE.md)** - Problem identification and resolution
+- **[Project Overview and Hackathon Guide](./docs/Project_Overview_and_Hackathon_Guide.md)** - Complete feature breakdown, architecture, and demo guide
+- **[Chainlink Integration Guide](./docs/Chainlink_Integration_Guide.md)** - Setup, configuration, and troubleshooting for Chainlink Functions integration
+- **[Deployment Guide](./docs/Deployment_Guide.md)** - Instructions for deploying the smart contract on Avalanche
+- **[Security Guide](./docs/Security_Guide.md)** - Security practices, audit findings, and best practices
 
 ## 🚀 Quick Start
 

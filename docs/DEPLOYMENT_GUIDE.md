@@ -1,120 +1,208 @@
-# ImperfectAbsLeaderboard Deployment Guide
+# 🚀 Deployment Guide - Imperfect Abs
 
-This guide will walk you through deploying the ImperfectAbsLeaderboard smart contract using Foundry on Avalanche Fuji testnet.
+This guide consolidates all information related to deploying the `ImperfectAbsLeaderboard` smart contract for the Imperfect Abs project on the Avalanche Fuji Testnet and prepares for mainnet deployment. It provides detailed instructions, configuration steps, and best practices to ensure a successful deployment process.
 
-## Prerequisites
+## 🌐 Network Configuration
 
-1. **Install Foundry**
+### Avalanche Fuji Testnet Details
+
+- **Network Name**: Avalanche Fuji C-Chain
+- **RPC URL**: `https://api.avax-test.network/ext/bc/C/rpc`
+- **Chain ID**: `43113`
+- **Currency Symbol**: `AVAX`
+- **Block Explorer**: `https://testnet.snowtrace.io/`
+- **Faucet**: Get test AVAX from https://faucet.avax.network/
+
+### Avalanche Mainnet Details (For Future Production)
+
+- **Network Name**: Avalanche C-Chain
+- **RPC URL**: `https://api.avax.network/ext/bc/C/rpc`
+- **Chain ID**: `43114`
+- **Currency Symbol**: `AVAX`
+- **Block Explorer**: `https://snowtrace.io/`
+
+## 🛠️ Prerequisites
+
+### Development Environment Setup
+
+1. **Install Foundry** (Recommended for Deployment):
    ```bash
    curl -L https://foundry.paradigm.xyz | bash
    foundryup
    ```
+2. **Install Additional Tools** (For Hardhat or Remix Options):
+   ```bash
+   npm install -g @remix-project/remixd
+   npm install --save-dev hardhat
+   npm install --save-dev @nomiclabs/hardhat-ethers
+   ```
+3. **Wallet Setup**:
+   - Install MetaMask or Core Wallet.
+   - Add Avalanche Fuji Testnet to your wallet.
+   - Fund wallet with test AVAX from the faucet.
 
-2. **Get Testnet AVAX**
-   - Visit [Avalanche Faucet](https://faucet.avax.network/)
-   - Request testnet AVAX for your deployment address
+### Get Snowtrace API Key (For Contract Verification)
 
-3. **Get Snowtrace API Key**
-   - Visit [Snowtrace](https://snowtrace.io/apis)
-   - Create an account and generate an API key for contract verification
+- Visit https://snowtrace.io/apis
+- Create an account and generate an API key.
 
-## Setup Instructions
+## 🚀 Deployment Options
 
-### 1. Install Dependencies
+### Option 1: Foundry Deployment (Recommended)
 
-```bash
-# Navigate to project directory
-cd imperfect-abs
+This method uses Foundry for a streamlined deployment process with script support.
 
-# Install forge standard library
-forge install foundry-rs/forge-std --no-git --no-commit
+1. **Install Dependencies**:
 
-# Install OpenZeppelin contracts (if not already installed)
-npm install @openzeppelin/contracts
+   ```bash
+   # Navigate to project directory
+   cd imperfect-abs
 
-# Install Chainlink contracts (if not already installed)
-npm install @chainlink/contracts
-```
+   # Install forge standard library
+   forge install foundry-rs/forge-std --no-git --no-commit
 
-### 2. Configure Environment Variables
+   # Install OpenZeppelin and Chainlink contracts
+   npm install @openzeppelin/contracts @chainlink/contracts
+   ```
 
-Create a `.env` file in the project root:
+2. **Configure Environment Variables** in `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` with your values:
+   ```bash
+   RPC_URL=https://api.avax-test.network/ext/bc/C/rpc
+   PRIVATE_KEY=your_actual_private_key_here
+   ETHERSCAN_API_KEY=your_snowtrace_api_key_here
+   CHAINLINK_ROUTER=0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0
+   CHAINLINK_SUBSCRIPTION_ID=15675
+   CHAINLINK_GAS_LIMIT=500000
+   CHAINLINK_DON_ID=0x66756e2d6176616c616e6368652d66756a692d31000000000000000000000000
+   ```
+3. **Load Environment Variables**:
+   ```bash
+   source .env
+   # or
+   export $(cat .env | xargs)
+   ```
+4. **Deploy Using Script** (Clean Production Version):
 
-```bash
-cp .env.example .env
-```
+   ```bash
+   # Compile contracts
+   forge build
 
-Edit `.env` with your actual values:
+   # Deploy to Fuji testnet with verification
+   forge script script/ProductionDeploy.s.sol:ProductionDeploy \
+     --rpc-url $RPC_URL \
+     --private-key $PRIVATE_KEY \
+     --broadcast \
+     --verify \
+     --etherscan-api-key $ETHERSCAN_API_KEY
+   ```
 
-```bash
-# Required for deployment
-RPC_URL=https://api.avax-test.network/ext/bc/C/rpc
-PRIVATE_KEY=your_actual_private_key_here
-ETHERSCAN_API_KEY=your_snowtrace_api_key_here
+   Alternative (without verification for faster deployment):
 
-# Chainlink Functions Configuration (pre-configured)
-CHAINLINK_ROUTER=0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0
-CHAINLINK_SUBSCRIPTION_ID=15675
-CHAINLINK_GAS_LIMIT=500000
-CHAINLINK_DON_ID=0x66756e2d6176616c616e6368652d66756a692d31000000000000000000000000
-```
+   ```bash
+   forge script script/ProductionDeploy.s.sol:ProductionDeploy \
+     --rpc-url $RPC_URL \
+     --private-key $PRIVATE_KEY \
+     --broadcast
+   ```
 
-### 3. Load Environment Variables
+5. **Direct Deployment with `forge create`** (Alternative to Script):
 
-```bash
-source .env
-# or
-export $(cat .env | xargs)
-```
+   ```bash
+   # Get the JavaScript source code
+   SOURCE_CODE=$(cat functions/fitness-analysis.js | tr '\n' ' ')
 
-## Deployment Process
+   # Deploy the contract
+   forge create contracts/ImperfectAbsLeaderboard.sol:ImperfectAbsLeaderboard \
+     --rpc-url $RPC_URL \
+     --private-key $PRIVATE_KEY \
+     --verify \
+     --etherscan-api-key $ETHERSCAN_API_KEY \
+     --constructor-args \
+       "0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0" \
+       "15675" \
+       "500000" \
+       "0x66756e2d6176616c616e6368652d66756a692d31000000000000000000000000" \
+       "$SOURCE_CODE"
+   ```
 
-### Option 1: Using the Deployment Script (Recommended)
+### Option 2: Remix IDE (Recommended for Hackathons)
 
-```bash
-# Compile contracts
-forge build
+This method is user-friendly for quick deployments during hackathons.
 
-# Deploy to Fuji testnet with verification
-forge script script/DeployImperfectAbs.s.sol:DeployImperfectAbs \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --broadcast \
-  --verify \
-  --etherscan-api-key $ETHERSCAN_API_KEY
+1. **Open Remix**: https://remix.ethereum.org/
+2. **Create New File**: `ImperfectAbsLeaderboard.sol`
+3. **Copy Contract Code** from `contracts/ImperfectAbsLeaderboard.sol`
+4. **Compile Contract**:
+   - Compiler Version: `0.8.24+`
+   - Enable Optimization: `200 runs`
+5. **Deploy**:
+   - Environment: `Injected Provider - MetaMask`
+   - Contract: `ImperfectAbsLeaderboard`
+   - Click `Deploy`
 
-# Alternative: Deploy without verification (faster)
-forge script script/DeployImperfectAbs.s.sol:DeployImperfectAbs \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --broadcast
-```
+### Option 3: Hardhat Deployment
 
-### Option 2: Direct Deployment with forge create
+This method is suitable for developers familiar with Hardhat.
 
-```bash
-# First, get the JavaScript source code
-SOURCE_CODE=$(cat functions/fitness-analysis.js | tr '\n' ' ')
+1. **Initialize Hardhat Project**:
+   ```bash
+   cd imperfect-abs
+   npm install --save-dev hardhat
+   npx hardhat init
+   ```
+2. **Configure Network** in `hardhat.config.js`:
 
-# Deploy the contract
-forge create contracts/ImperfectAbsLeaderboard.sol:ImperfectAbsLeaderboard \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --verify \
-  --etherscan-api-key $ETHERSCAN_API_KEY \
-  --constructor-args \
-    "0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0" \
-    "15675" \
-    "500000" \
-    "0x66756e2d6176616c616e6368652d66756a692d31000000000000000000000000" \
-    "$SOURCE_CODE"
-```
+   ```javascript
+   require("@nomiclabs/hardhat-ethers");
 
-## Post-Deployment Setup
+   module.exports = {
+     solidity: "0.8.24",
+     networks: {
+       fuji: {
+         url: "https://api.avax-test.network/ext/bc/C/rpc",
+         chainId: 43113,
+         accounts: [process.env.PRIVATE_KEY], // Add your private key to .env
+       },
+     },
+   };
+   ```
+
+3. **Create Deployment Script** in `scripts/deploy.js`:
+
+   ```javascript
+   async function main() {
+     const ImperfectAbsLeaderboard = await ethers.getContractFactory(
+       "ImperfectAbsLeaderboard"
+     );
+     const contract = await ImperfectAbsLeaderboard.deploy();
+
+     await contract.deployed();
+
+     console.log("ImperfectAbsLeaderboard deployed to:", contract.address);
+     console.log("Transaction hash:", contract.deployTransaction.hash);
+     console.log("Deployer address:", await contract.owner());
+   }
+
+   main().catch((error) => {
+     console.error(error);
+     process.exitCode = 1;
+   });
+   ```
+
+4. **Deploy**:
+   ```bash
+   npx hardhat run scripts/deploy.js --network fuji
+   ```
+
+## 🔧 Post-Deployment Setup
 
 ### 1. Add Contract as Chainlink Functions Consumer
 
-After deployment, you need to add your contract as a consumer to the Chainlink Functions subscription:
+After deployment, add your contract to the Chainlink Functions subscription:
 
 ```bash
 # Replace <CONTRACT_ADDRESS> with your deployed contract address
@@ -127,7 +215,7 @@ cast send \
   <CONTRACT_ADDRESS>
 ```
 
-### 2. Verify Contract (if not done during deployment)
+### 2. Verify Contract on Snowtrace (If Not Done During Deployment)
 
 ```bash
 # Replace <CONTRACT_ADDRESS> with your deployed contract address
@@ -145,9 +233,36 @@ forge verify-contract \
   contracts/ImperfectAbsLeaderboard.sol:ImperfectAbsLeaderboard
 ```
 
-## Testing the Deployment
+Alternatively, manually verify at https://testnet.snowtrace.io/ by finding your contract address and selecting "Contract" → "Verify and Publish".
 
-### 1. Check Contract Status First
+### 3. Configure Contract Parameters
+
+- **Fee Structure**:
+  ```solidity
+  // Default: 0.01 AVAX submission fee, 70% owner, 30% leaderboard
+  updateFeeConfig(
+      10000000000000000, // 0.01 AVAX in wei
+      7000,              // 70% to owner
+      3000               // 30% to participants
+  );
+  ```
+- **Exercise Parameters**:
+  ```solidity
+  setSubmissionCooldown(60);    // 1 minute between submissions
+  setMaxRepsPerSession(200);    // Max 200 reps per session
+  setMinFormAccuracy(50);       // Minimum 50% form accuracy
+  ```
+
+### 4. Update Documentation
+
+After successful deployment:
+
+- Update `.env` with the new `CONTRACT_ADDRESS`.
+- Update `README.md` and other documentation files with the new address.
+
+## 🧪 Testing the Deployment
+
+### 1. Check Contract Status
 
 ```bash
 # Check if contract is properly configured
@@ -173,7 +288,7 @@ cast call \
 
 ```bash
 # Replace <CONTRACT_ADDRESS> with your deployed contract address
-# For your contract: 0x4996089d644d023F02Bf891E98a00b143201f133
+# For example: 0x4996089d644d023F02Bf891E98a00b143201f133
 # Submit workout: 25 reps, 80% form accuracy, 5 minute streak, 300 seconds duration
 cast send \
   --rpc-url $RPC_URL \
@@ -222,42 +337,205 @@ cast call \
   0x55A5705453Ee82c742274154136Fce8149597058
 ```
 
-## Troubleshooting
+### Quick Test Sequence
+
+```bash
+# 1. Load environment
+source .env
+
+# 2. Check contract status
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "submissionsEnabled()(bool)"
+
+# 3. Check cooldown status for your address
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "getTimeUntilNextSubmission(address)(uint256)" 0x55A5705453Ee82c742274154136Fce8149597058
+
+# 4. Submit workout (adjust parameters if needed)
+cast send --rpc-url $RPC_URL --private-key $PRIVATE_KEY --value 0.01ether <CONTRACT_ADDRESS> "submitWorkoutSession(uint256,uint256,uint256,uint256)" 25 80 5 300
+
+# 5. Check if it worked
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "getUserSessionCount(address)(uint256)" 0x55A5705453Ee82c742274154136Fce8149597058
+```
+
+### Frontend Testing
+
+```bash
+# Test with local blockchain
+npm run dev:local
+
+# Test with Fuji testnet
+npm run dev:testnet
+```
+
+## 🔄 Why Redeploy for Production?
+
+### Issues with Initial Deployment (e.g., `0xdf07bD5a057aBf76147231886C94FEb985151ebc`)
+
+- Contains test functions (`testThreeArguments()`, `testFourArgumentsOld()`).
+- Larger bytecode increases deployment costs.
+- Not production-clean, presenting a larger security surface.
+
+### Benefits of Clean Deployment
+
+- Production-ready with no debug/test code.
+- Smaller bytecode for lower gas costs.
+- Professional and auditable contract.
+- Better performance optimized for production.
+
+## 📋 Verification Checklist for Clean Deployment
+
+- [ ] Contract deploys successfully.
+- [ ] Added to Chainlink subscription (ID: 15675).
+- [ ] Workout submission works.
+- [ ] AI analysis functions properly.
+- [ ] No test functions present in deployed contract.
+- [ ] Documentation updated with new address.
+
+## 🔗 Frontend Integration
+
+### Contract ABI Integration
+
+1. **Generate ABI**: Copy from Remix compilation artifacts or Foundry build output.
+2. **Create Contract Instance**:
+
+   ```typescript
+   // src/lib/contract.ts
+   import { ethers } from "ethers";
+
+   const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS";
+   const CONTRACT_ABI = [
+     /* ABI from compilation */
+   ];
+
+   export const getContract = (signer: ethers.Signer) => {
+     return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+   };
+
+   export const submitWorkout = async (
+     signer: ethers.Signer,
+     reps: number,
+     formAccuracy: number,
+     streak: number,
+     duration: number
+   ) => {
+     const contract = getContract(signer);
+     const submissionFee = await contract.feeConfig.submissionFee();
+
+     const tx = await contract.submitWorkoutSession(
+       reps,
+       formAccuracy,
+       streak,
+       duration,
+       { value: submissionFee }
+     );
+
+     return await tx.wait();
+   };
+   ```
+
+### Wallet Connection
+
+```typescript
+// src/lib/wallet.ts
+import { ethers } from "ethers";
+
+export const connectWallet = async () => {
+  if (typeof window.ethereum !== "undefined") {
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+
+      // Switch to Avalanche Fuji
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0xA869" }], // 43113 in hex
+      });
+
+      return provider.getSigner();
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+    }
+  }
+};
+```
+
+## 📊 Ecosystem Integration
+
+### Sister App References
+
+The contract includes ecosystem tracking events for cross-app analytics:
+
+```solidity
+event EcosystemIntegration(string indexed appName, address indexed user, uint256 score);
+```
+
+This supports integration across:
+
+- **ImperfectCoach** (Base Sepolia): Pull-ups & Jumps
+- **ImperfectForm** (Multi-chain): Comprehensive Form Analysis
+- **ImperfectBreath** (Lens/Flow/Base): Breathing & Mindfulness
+- **ImperfectAbs** (Avalanche): Abs & Core Exercises
+
+### Multi-Chain Leaderboard Aggregation
+
+Future integration for ecosystem-wide leaderboards:
+
+```typescript
+// Aggregate scores across all apps
+const getUserEcosystemScore = async (userAddress: string) => {
+  const scores = await Promise.all([
+    getImperfectCoachScore(userAddress), // Base Sepolia
+    getImperfectFormScore(userAddress), // Multi-chain
+    getImperfectBreathScore(userAddress), // Lens/Flow
+    getImperfectAbsScore(userAddress), // Avalanche
+  ]);
+
+  return aggregateScores(scores);
+};
+```
+
+## 📈 Monitoring & Analytics
+
+### Essential Metrics to Track
+
+1. **User Engagement**: Daily active users, session frequency, average reps per session.
+2. **Form Quality**: Average form accuracy trends, best streak distributions, improvement over time.
+3. **Economic Metrics**: Fee collection rates, reward distribution efficiency, gas cost optimization.
+
+### Recommended Tools
+
+- **Snowtrace**: Transaction monitoring.
+- **Dune Analytics**: Custom dashboards.
+- **The Graph**: Subgraph for efficient querying.
+
+## 🚨 Troubleshooting Deployment Issues
 
 ### Common Issues
 
-1. **"InsufficientFee" Error**
-   - Ensure you're sending at least 0.01 AVAX with your transaction
-   - Add `--value 0.01ether` to your cast send command
-
-2. **"CooldownNotExpired" Error (Error 0x1d70f87a)**
-   - Wait 60 seconds between submissions from the same address
-   - Check remaining cooldown time:
-   ```bash
-   cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "getTimeUntilNextSubmission(address)(uint256)" 0x55A5705453Ee82c742274154136Fce8149597058
-   ```
-   - The error data shows remaining seconds (e.g., 0x493e0 = 300,000 seconds)
-
-3. **"FormAccuracyInvalid" Error**
-   - Ensure form accuracy is between 50-100 (minimum 50% required)
-   - Check current minimum: 
-   ```bash
-   cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "MIN_FORM_ACCURACY()(uint256)"
-   ```
-
-4. **"ScoreExceedsMaximum" Error**
-   - Ensure reps don't exceed maximum allowed per session
-   - Check current maximum:
-   ```bash
-   cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "MAX_REPS_PER_SESSION()(uint256)"
-   ```
-
-5. **Verification Failed**
-   - Contract still works even if verification fails
-   - Verify manually at: https://testnet.snowtrace.io/address/0x4996089d644d023F02Bf891E98a00b143201f133
-   - Error "Too many API attempts" means try again later
-
-6. **Gas Estimation Failed**
+1. **"InsufficientFee" Error**:
+   - Ensure sending at least 0.01 AVAX with transactions.
+   - Add `--value 0.01ether` to `cast send` commands.
+2. **"CooldownNotExpired" Error (Error 0x1d70f87a)**:
+   - Wait 60 seconds between submissions.
+   - Check remaining cooldown:
+     ```bash
+     cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "getTimeUntilNextSubmission(address)(uint256)" 0x55A5705453Ee82c742274154136Fce8149597058
+     ```
+3. **"FormAccuracyInvalid" Error**:
+   - Ensure form accuracy is between 50-100.
+   - Check minimum:
+     ```bash
+     cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "MIN_FORM_ACCURACY()(uint256)"
+     ```
+4. **"ScoreExceedsMaximum" Error**:
+   - Ensure reps don't exceed maximum allowed.
+   - Check maximum:
+     ```bash
+     cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "MAX_REPS_PER_SESSION()(uint256)"
+     ```
+5. **Verification Failed**:
+   - Contract still works; verify manually at https://testnet.snowtrace.io/.
+   - "Too many API attempts" means try again later.
+6. **Gas Estimation Failed**:
    - Increase gas limit: `--gas-limit 3000000`
    - Check gas price: `--gas-price 30000000000`
 
@@ -265,65 +543,59 @@ cast call \
 
 ```bash
 # Check if submissions are enabled
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "submissionsEnabled()(bool)"
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "submissionsEnabled()(bool)"
 
 # Check contract owner
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "owner()(address)"
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "owner()(address)"
 
 # Check fee configuration
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "feeConfig()(uint256,uint256,uint256)"
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "feeConfig()(uint256,uint256,uint256)"
 
 # Check reward pool status
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "getRewardConfig()(uint256,uint256,uint256,uint256,bool,uint256)"
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "getRewardConfig()(uint256,uint256,uint256,uint256,bool,uint256)"
 ```
 
 ### Useful Commands
 
 ```bash
 # Check contract balance
-cast balance 0x4996089d644d023F02Bf891E98a00b143201f133 --rpc-url $RPC_URL
+cast balance <CONTRACT_ADDRESS> --rpc-url $RPC_URL
 
-# Check your balance  
+# Check your balance
 cast balance 0x55A5705453Ee82c742274154136Fce8149597058 --rpc-url $RPC_URL
 
 # Get contract info
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "getEcosystemInfo()(string,string,string)"
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "getEcosystemInfo()(string,string,string)"
 
 # Get reward configuration
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "getRewardConfig()(uint256,uint256,uint256,uint256,bool,uint256)"
+cast call --rpc-url $RPC_URL <CONTRACT_ADDRESS> "getRewardConfig()(uint256,uint256,uint256,uint256,bool,uint256)"
 
 # Decode error data
 cast 4byte-decode <ERROR_DATA>
 cast to-dec <HEX_VALUE>  # Convert hex to decimal
 ```
 
-## Quick Test Sequence
+## 🔒 Security Considerations
 
-After successful deployment, run these commands in order:
+### Smart Contract Security
 
-```bash
-# 1. Load environment
-source .env
+1. **Access Controls**: Only owner can modify critical parameters.
+2. **Reentrancy Protection**: State changes before external calls.
+3. **Input Validation**: Comprehensive parameter checking.
+4. **Emergency Controls**: Pausable submissions and emergency withdrawal.
+5. **Never Commit Private Keys**: Use environment variables or hardware wallets for mainnet.
+6. **Verify Contract Source**: Ensure code is verified on Snowtrace.
+7. **Test Thoroughly**: Validate all functions on testnet before mainnet.
 
-# 2. Add as consumer (DONE ✅)
-# Already completed successfully
+### Frontend Security
 
-# 3. Check contract status
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "submissionsEnabled()(bool)"
+1. **Private Key Management**: Never expose private keys.
+2. **Contract Address Verification**: Verify contract addresses.
+3. **Transaction Validation**: Confirm transaction details before signing.
 
-# 4. Check cooldown status for your address
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "getTimeUntilNextSubmission(address)(uint256)" 0x55A5705453Ee82c742274154136Fce8149597058
+## 🚀 Production Deployment on Avalanche Mainnet
 
-# 5. Submit workout (adjust parameters if needed)
-cast send --rpc-url $RPC_URL --private-key $PRIVATE_KEY --value 0.01ether 0x4996089d644d023F02Bf891E98a00b143201f133 "submitWorkoutSession(uint256,uint256,uint256,uint256)" 25 80 5 300
-
-# 6. Check if it worked
-cast call --rpc-url $RPC_URL 0x4996089d644d023F02Bf891E98a00b143201f133 "getUserSessionCount(address)(uint256)" 0x55A5705453Ee82c742274154136Fce8149597058
-```
-
-## Mainnet Deployment
-
-To deploy to Avalanche Mainnet, update your environment variables:
+### Configuration for Mainnet
 
 ```bash
 # Mainnet configuration
@@ -336,19 +608,35 @@ export CHAINLINK_ROUTER=0x9f82a6A0758517FD0bA7Bb53BF6B3D5e5A5F8F4A  # Mainnet ro
 export CHAINLINK_SUBSCRIPTION_ID=your_mainnet_subscription_id
 ```
 
-Then follow the same deployment process.
+Follow the same deployment process as for testnet.
 
-## Security Considerations
+### Mainnet Readiness
 
-1. **Never commit private keys to version control**
-2. **Use hardware wallets for mainnet deployments**
-3. **Verify contract source code on Snowtrace**
-4. **Test thoroughly on testnet before mainnet**
-5. **Consider using a multisig wallet for contract ownership**
+1. **Security Audit**: Conduct a professional audit before mainnet deployment.
+2. **Multi-Signature Wallet**: Use for contract ownership.
+3. **Timelocks**: Implement for critical parameter changes.
+4. **Gradual Rollout**: Start with limited features and expand.
+5. **Insurance**: Consider smart contract insurance coverage.
 
-## Support
+## 🔄 Migration from Old Contract
 
-- [Avalanche Documentation](https://docs.avax.network/)
-- [Foundry Documentation](https://book.getfoundry.sh/)
-- [Chainlink Functions Documentation](https://docs.chain.link/chainlink-functions)
-- [Snowtrace](https://snowtrace.io/) for contract verification and monitoring
+If transitioning from an old contract with test functions:
+
+- **No Automatic Migration**: Solidity contracts are immutable.
+- **Manual Process**: Users must use the new contract address.
+- **Communication**: Notify users of the new address.
+- **Gradual Transition**: Keep the old contract for reference.
+
+## 📞 Support Resources
+
+- **Avalanche Documentation**: https://docs.avax.network/
+- **Foundry Documentation**: https://book.getfoundry.sh/
+- **Hardhat Documentation**: https://hardhat.org/docs
+- **Remix IDE**: https://remix.ethereum.org/
+- **Snowtrace**: https://testnet.snowtrace.io/ for contract verification and monitoring
+- **Core Wallet**: https://core.app/
+
+---
+
+**🏔️ Built for the Imperfect Fitness Ecosystem on Avalanche**  
+This guide provides a comprehensive resource for deploying the Imperfect Abs smart contract, ensuring a clean, production-ready implementation for both testnet and future mainnet environments.
