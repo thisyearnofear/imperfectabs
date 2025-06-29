@@ -130,11 +130,22 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   const connectWalletConnect = useCallback(async () => {
     try {
+      console.log("🔗 Starting WalletConnect connection...");
+
       const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID;
       if (!projectId) {
         throw new Error("WalletConnect Project ID not configured");
       }
+      console.log("✅ Project ID found:", projectId);
 
+      // Disconnect existing provider if any
+      if (walletConnectProvider) {
+        console.log("🔄 Disconnecting existing provider...");
+        await walletConnectProvider.disconnect();
+        setWalletConnectProvider(null);
+      }
+
+      console.log("🚀 Initializing new WalletConnect provider...");
       const wcProvider = await EthereumProvider.init({
         projectId,
         chains: [43113], // Avalanche Fuji
@@ -147,33 +158,37 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         },
       });
 
-      // Get the connection URI for our custom modal
-      const uri = (wcProvider as unknown as { connector?: { uri?: string } })
-        .connector?.uri;
-      if (uri) {
-        setModalUri(uri);
-        setIsModalOpen(true);
-      }
+      console.log("✅ WalletConnect provider initialized");
+      setWalletConnectProvider(wcProvider);
 
       // Set up event listeners
       wcProvider.on("display_uri", (uri: string) => {
+        console.log("📱 WalletConnect URI received:", uri);
         setModalUri(uri);
         setIsModalOpen(true);
       });
 
       wcProvider.on("connect", () => {
+        console.log("🎉 WalletConnect connected");
         setIsModalConnecting(true);
       });
 
       wcProvider.on("disconnect", () => {
+        console.log("👋 WalletConnect disconnected");
         setIsModalOpen(false);
         setModalUri(null);
         setIsModalConnecting(false);
       });
 
+      // Show modal immediately
+      console.log("📱 Opening modal...");
+      setIsModalOpen(true);
+      setIsModalConnecting(false);
+      setModalUri(null); // Clear any old URI
+
+      // Enable the provider - this should trigger display_uri event
+      console.log("🔌 Enabling WalletConnect provider...");
       await wcProvider.enable();
-      setIsModalConnecting(true);
-      setWalletConnectProvider(wcProvider);
 
       const ethersProvider = new ethers.providers.Web3Provider(wcProvider);
       const signer = ethersProvider.getSigner();
