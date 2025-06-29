@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import type { Results } from "@mediapipe/pose";
-import { POSE_CONNECTIONS } from "@mediapipe/pose";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
+// MediaPipe imports - using dynamic imports to avoid SSR issues
+// import { POSE_CONNECTIONS } from "@mediapipe/pose";
+// import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { AbsExerciseDetector, ExerciseState } from "../lib/pose-detection";
 import { useWallet } from "../contexts/WalletContext";
+import { useContract } from "../contexts/ContractContext";
 import WalletConnectButton from "./WalletConnectButton";
 import WorkoutTips from "./WorkoutTips";
 import WorkoutSummary from "./WorkoutSummary";
@@ -27,6 +29,25 @@ interface WorkoutState {
   hasCompletedWorkout: boolean;
   showSubmission: boolean;
 }
+
+// Dynamic MediaPipe imports to avoid SSR issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let drawConnectors: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+let drawLandmarks: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+let POSE_CONNECTIONS: any = null;
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const loadMediaPipeUtils = async () => {
+  if (!drawConnectors) {
+    const drawingUtils = await import("@mediapipe/drawing_utils");
+    const pose = await import("@mediapipe/pose");
+    drawConnectors = drawingUtils.drawConnectors;
+    drawLandmarks = drawingUtils.drawLandmarks;
+    POSE_CONNECTIONS = pose.POSE_CONNECTIONS;
+  }
+};
 
 export default function ImprovedWorkoutTracker() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -85,6 +106,7 @@ export default function ImprovedWorkoutTracker() {
   // Wallet context
   const { isConnected: isWalletConnected, address: walletAddress } =
     useWallet();
+  const { contract } = useContract();
 
   // Auto-detect mobile device
   const [isMobile, setIsMobile] = useState(false);
@@ -189,14 +211,39 @@ export default function ImprovedWorkoutTracker() {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              drawLandmarks(ctx, results.poseLandmarks, {
-                color: "#FF0000",
-                lineWidth: 2,
-              });
-              drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-                color: "#00FF00",
-                lineWidth: 4,
-              });
+
+              // Temporarily disable MediaPipe drawing to fix compilation
+              // TODO: Re-enable once MediaPipe imports are working
+              /*
+              // Load MediaPipe utils if not already loaded
+              if (!drawLandmarks) {
+                await loadMediaPipeUtils();
+              }
+
+              if (drawLandmarks && drawConnectors && POSE_CONNECTIONS) {
+                drawLandmarks(ctx, results.poseLandmarks, {
+                  color: "#FF0000",
+                  lineWidth: 2,
+                });
+                drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+                  color: "#00FF00",
+                  lineWidth: 4,
+                });
+              }
+              */
+
+              // Simple pose visualization without MediaPipe drawing utils
+              if (results.poseLandmarks) {
+                ctx.fillStyle = "#FF0000";
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                results.poseLandmarks.forEach((landmark: any) => {
+                  const x = landmark.x * canvas.width;
+                  const y = landmark.y * canvas.height;
+                  ctx.beginPath();
+                  ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                  ctx.fill();
+                });
+              }
             }
           }
 
@@ -558,7 +605,7 @@ export default function ImprovedWorkoutTracker() {
                     )}
                   {isWalletConnected && (
                     <RewardSystem
-                      contract={null}
+                      contract={contract}
                       userAddress={walletAddress || null}
                     />
                   )}

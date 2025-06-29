@@ -123,6 +123,11 @@ export class ImperfectAbsContract {
 
   constructor() {}
 
+  // Get the raw contract instance
+  getContract(): ethers.Contract | null {
+    return this.contract;
+  }
+
   // Initialize with wallet connection
   async initialize(provider: ethers.providers.Web3Provider): Promise<void> {
     this.provider = provider;
@@ -421,9 +426,9 @@ export class ImperfectAbsContract {
       const info = await this.contract.getUserRewardInfo(userAddress);
       return {
         totalEarned: ethers.utils.formatEther(info[0]),
-        lastClaimed: info[1].toNumber(),
+        lastClaimed: Number(info[1]),
         currentPeriodEarned: ethers.utils.formatEther(info[2]),
-        rank: info[3].toNumber(),
+        rank: Number(info[3]),
         pendingAmount: ethers.utils.formatEther(info[4]),
       };
     } catch (error) {

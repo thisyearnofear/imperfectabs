@@ -34,7 +34,7 @@ interface LeaderboardProps {
 
 export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>(
-    [],
+    []
   );
   const [timeFilter, setTimeFilter] = useState<
     "daily" | "weekly" | "monthly" | "allTime"
@@ -61,7 +61,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
           setIsConnected(true);
         } catch {
           console.warn(
-            "Contract initialization failed, loading in read-only mode",
+            "Contract initialization failed, loading in read-only mode"
           );
         }
       }
@@ -76,7 +76,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
           const compositeScore = await imperfectAbsContract.calculateScore(
             entry.totalReps,
             entry.averageFormAccuracy,
-            entry.bestStreak,
+            entry.bestStreak
           );
 
           return {
@@ -91,7 +91,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
             score: entry.totalReps, // Simple score for display
             compositeScore,
           };
-        }),
+        })
       );
 
       // Sort by composite score descending
@@ -178,7 +178,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
               >
                 {filter === "allTime" ? "ALL TIME" : filter.toUpperCase()}
               </button>
-            ),
+            )
           )}
         </div>
       </div>
@@ -200,7 +200,9 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
             </div>
             <div className="text-center">
               <div
-                className={`text-2xl font-black ${getFormQualityColor(currentUserStats.averageFormAccuracy)}`}
+                className={`text-2xl font-black ${getFormQualityColor(
+                  currentUserStats.averageFormAccuracy
+                )}`}
               >
                 {currentUserStats.averageFormAccuracy}%
               </div>
@@ -304,8 +306,8 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
                                   rank === 1
                                     ? "#ffd70020"
                                     : rank === 2
-                                      ? "#c0c0c020"
-                                      : "#cd7f3220",
+                                    ? "#c0c0c020"
+                                    : "#cd7f3220",
                               }
                             : {}
                         }
@@ -317,10 +319,10 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
                                 rank === 1
                                   ? "abs-leaderboard-gold"
                                   : rank === 2
-                                    ? "abs-leaderboard-silver"
-                                    : rank === 3
-                                      ? "abs-leaderboard-bronze"
-                                      : ""
+                                  ? "abs-leaderboard-silver"
+                                  : rank === 3
+                                  ? "abs-leaderboard-bronze"
+                                  : ""
                               }`}
                             >
                               {getRankIcon(rank)}
@@ -337,7 +339,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
                             />
                             <div className="text-xs text-gray-500 mt-1">
                               {formatTimestamp(
-                                entry.lastActive.getTime() / 1000,
+                                entry.lastActive.getTime() / 1000
                               )}
                             </div>
                           </div>
@@ -357,7 +359,9 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div
-                            className={`font-black ${getFormQualityColor(entry.averageFormAccuracy)}`}
+                            className={`font-black ${getFormQualityColor(
+                              entry.averageFormAccuracy
+                            )}`}
                           >
                             {entry.averageFormAccuracy}%
                           </div>

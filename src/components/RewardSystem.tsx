@@ -43,24 +43,24 @@ export default function RewardSystem({
       setRewardInfo({
         totalEarned: ethers.utils.formatEther(userReward.totalEarned),
         lastClaimed: new Date(
-          userReward.lastClaimed.toNumber() * 1000
+          Number(userReward.lastClaimed) * 1000
         ).toLocaleDateString(),
         currentPeriodEarned: ethers.utils.formatEther(
           userReward.currentPeriodEarned
         ),
-        rank: userReward.rank.toNumber(),
+        rank: Number(userReward.rank),
         pendingAmount: ethers.utils.formatEther(userReward.pendingAmount),
       });
 
       // Get reward config
       const config = await contract.getRewardConfig();
       setRewardConfig({
-        distributionPeriod: config.distributionPeriod.toNumber(),
-        topPerformersCount: config.topPerformersCount.toNumber(),
-        lastDistribution: config.lastDistribution.toNumber(),
+        distributionPeriod: Number(config.distributionPeriod),
+        topPerformersCount: Number(config.topPerformersCount),
+        lastDistribution: Number(config.lastDistribution),
         totalRewardPool: ethers.utils.formatEther(config.totalRewardPool),
         autoDistribution: config.autoDistribution,
-        timeUntilNextDistribution: config.timeUntilNextDistribution.toNumber(),
+        timeUntilNextDistribution: Number(config.timeUntilNextDistribution),
       });
     } catch (error) {
       console.error("Error loading reward data:", error);

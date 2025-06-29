@@ -5,6 +5,7 @@ import ImprovedWorkoutTracker from "../components/ImprovedWorkoutTracker";
 import Leaderboard from "../components/Leaderboard";
 import EcosystemNav from "../components/EcosystemNav";
 import { WalletProvider } from "../contexts/WalletContext";
+import { ContractProvider } from "../contexts/ContractContext";
 import WalletConnectButton, {
   MobileWalletIndicator,
 } from "../components/WalletConnectButton";
@@ -234,7 +235,9 @@ function HomeContent() {
 export default function Home() {
   return (
     <WalletProvider>
-      <HomeContent />
+      <ContractProvider>
+        <HomeContent />
+      </ContractProvider>
     </WalletProvider>
   );
 }
