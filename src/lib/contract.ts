@@ -221,25 +221,54 @@ export const submitWorkoutSession = async (
   poseData?: unknown[],
 ) => {
   try {
+    console.log("🏋️ Starting workout session submission...");
+    console.log("📊 Session data:", { reps, formAccuracy, streak, duration });
+
     const contract = getContract(signer);
 
     // Get submission fee
+    console.log("💰 Getting submission fee...");
     const feeConfig = await contract.feeConfig();
     const submissionFee = feeConfig.submissionFee;
+    console.log("💸 Submission fee:", ethers.utils.formatEther(submissionFee), "AVAX");
 
     // Submit basic workout session
+    console.log("📤 Submitting transaction to contract...");
     const tx = await contract.submitWorkoutSession(
       reps,
       formAccuracy,
       streak,
       duration,
-      { value: submissionFee },
+      {
+        value: submissionFee,
+        gasLimit: 500000 // Higher gas limit for Chainlink Functions
+      },
     );
 
+    console.log("🔗 Transaction hash:", tx.hash);
+    console.log("⏳ Waiting for confirmation...");
+
     const receipt = await tx.wait();
+    console.log("✅ Transaction confirmed in block:", receipt.blockNumber);
+    console.log("⛽ Gas used:", receipt.gasUsed.toString());
+
+    // Log all events
+    console.log("📋 Transaction events:");
+    receipt.events?.forEach((event, index) => {
+      console.log(`  ${index + 1}. ${event.event || 'Unknown Event'}`);
+      if (event.event === 'AIAnalysisRequested') {
+        console.log(`     🔗 Chainlink Request ID: ${event.args?.requestId}`);
+        console.log(`     👤 User: ${event.args?.user}`);
+        console.log(`     📊 Session Index: ${event.args?.sessionIndex}`);
+      }
+      if (event.args && Object.keys(event.args).length > 0) {
+        console.log("     Args:", event.args);
+      }
+    });
 
     // If pose data is available, trigger Chainlink Functions for enhanced analysis
     if (poseData && poseData.length > 0) {
+      console.log("🤖 Requesting enhanced analysis with pose data...");
       await requestEnhancedAnalysis(signer, {
         reps,
         formAccuracy,
@@ -255,7 +284,11 @@ export const submitWorkoutSession = async (
 
     return receipt;
   } catch (error) {
-    console.error("Failed to submit workout session:", error);
+    console.error("❌ Failed to submit workout session:", error);
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     throw error;
   }
 };

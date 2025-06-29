@@ -63,16 +63,29 @@ export default function ChainlinkEnhancement({
   };
 
   const requestEnhancedAnalysis = async () => {
-    if (!currentSession || !signer) return;
+    if (!currentSession || !signer) {
+      console.log("❌ Cannot request analysis: missing session or signer");
+      return;
+    }
+
+    console.log("🚀 Starting AI analysis request...");
+    console.log("📊 Session data:", {
+      reps: currentSession.reps,
+      formAccuracy: currentSession.formAccuracy,
+      streak: currentSession.streak,
+      duration: currentSession.duration,
+    });
 
     setIsRequestingAnalysis(true);
 
     try {
-      console.log("Requesting AI analysis via consumer contract...");
+      console.log("📝 Requesting AI analysis via consumer contract...");
 
       // Import contract integration
       const { getContract } = await import("../lib/contract");
       const contract = getContract(signer);
+
+      console.log("💰 Preparing transaction with 0.01 AVAX fee...");
 
       // Call the consumer contract's submitWorkoutSession function
       // This will internally trigger requestAIAnalysis via Chainlink Functions
@@ -87,20 +100,43 @@ export default function ChainlinkEnhancement({
         }
       );
 
-      console.log("Transaction sent:", tx.hash);
-      const receipt = await tx.wait();
-      console.log("Transaction confirmed:", receipt.transactionHash);
+      console.log("📤 Transaction sent:", tx.hash);
+      console.log("⏳ Waiting for confirmation...");
 
-      // Extract request ID from events if available
-      const requestEvent = receipt.events?.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e: any) => e.event === "RequestSent" || e.topics?.[0] === "0x..." // Add actual event signature
+      const receipt = await tx.wait();
+      console.log("✅ Transaction confirmed in block:", receipt.blockNumber);
+      console.log(
+        "📋 Receipt events:",
+        receipt.events?.map((e) => e.event)
       );
 
+      // Extract the actual Chainlink request ID from events
+      let chainlinkRequestId = null;
+
+      // Look for AIAnalysisRequested event
+      const aiAnalysisEvents = receipt.events?.filter(
+        (event) => event.event === "AIAnalysisRequested"
+      );
+
+      if (aiAnalysisEvents && aiAnalysisEvents.length > 0) {
+        chainlinkRequestId = aiAnalysisEvents[0].args?.requestId;
+        console.log("🔗 Chainlink request ID found:", chainlinkRequestId);
+      } else {
+        console.log(
+          "⚠️ No AIAnalysisRequested event found, checking all events..."
+        );
+        receipt.events?.forEach((event, index) => {
+          console.log(`Event ${index}:`, {
+            event: event.event,
+            args: event.args,
+            topics: event.topics,
+          });
+        });
+        chainlinkRequestId = `fallback_${receipt.transactionHash}`;
+      }
+
       const newRequest: ChainlinkRequest = {
-        requestId:
-          requestEvent?.args?.requestId ||
-          `0x${Math.random().toString(16).substr(2, 64)}`,
+        requestId: chainlinkRequestId,
         status: "pending",
         sessionData: currentSession,
         timestamp: Date.now(),
@@ -112,14 +148,21 @@ export default function ChainlinkEnhancement({
       saveRequests(updatedRequests);
       setHasActiveRequest(true);
 
-      console.log(
-        `AI analysis request submitted! TX: ${receipt.transactionHash}`
-      );
+      console.log("📋 Request tracking created:", {
+        requestId: newRequest.requestId,
+        txHash: receipt.transactionHash,
+        status: "pending",
+      });
 
       // Poll for response by checking contract events
+      console.log("🔄 Starting to poll for Chainlink response...");
       pollForContractResponse(newRequest.requestId);
     } catch (error) {
-      console.error("Failed to request enhanced analysis:", error);
+      console.error("❌ Failed to request enhanced analysis:", error);
+      if (error instanceof Error) {
+        console.error("Error details:", error.message);
+        console.error("Error stack:", error.stack);
+      }
       setHasActiveRequest(false);
     } finally {
       setIsRequestingAnalysis(false);
@@ -127,15 +170,22 @@ export default function ChainlinkEnhancement({
   };
 
   const pollForContractResponse = async (requestId: string) => {
+    console.log("🔄 Starting polling for request:", requestId);
+
     // Poll for Chainlink Functions fulfillment events from the consumer contract
     let attempts = 0;
-    const maxAttempts = 30; // 5 minutes max
+    const maxAttempts = 30; // 5 minutes max (30 attempts * 10 seconds)
 
     const poll = setInterval(async () => {
       attempts++;
+      console.log(
+        `🔍 Polling attempt ${attempts}/${maxAttempts} for request ${requestId}`
+      );
 
       if (attempts >= maxAttempts) {
         clearInterval(poll);
+        console.log("⏰ Polling timeout reached, marking request as failed");
+
         // Mark as failed
         const updatedRequests = requests.map((req) =>
           req.requestId === requestId
@@ -150,21 +200,36 @@ export default function ChainlinkEnhancement({
       try {
         // Check contract for fulfillment events
         const { getContract } = await import("../lib/contract");
-        if (!provider) return;
+        if (!provider) {
+          console.log("⚠️ No provider available for polling");
+          return;
+        }
+
         const contract = getContract(provider);
+        console.log("📡 Checking contract for events...");
 
-        // Query for RequestFulfilled events
-        const filter = contract.filters.RequestFulfilled?.(requestId);
-        if (filter) {
-          const events = await contract.queryFilter(filter, -1000); // Last 1000 blocks
+        // Check for AIAnalysisCompleted events (success case)
+        const completedFilter = contract.filters.AIAnalysisCompleted?.(
+          null,
+          requestId
+        );
+        if (completedFilter) {
+          console.log("🔍 Checking for AIAnalysisCompleted events...");
+          const completedEvents = await contract.queryFilter(
+            completedFilter,
+            -1000
+          ); // Last 1000 blocks
 
-          if (events.length > 0) {
+          if (completedEvents.length > 0) {
             clearInterval(poll);
+            console.log("✅ AIAnalysisCompleted event found!");
 
-            const event = events[0];
-            const enhancedScore = event.args?.response
-              ? parseInt(event.args.response.toString())
+            const event = completedEvents[0];
+            const enhancedScore = event.args?.enhancedScore
+              ? parseInt(event.args.enhancedScore.toString())
               : currentSession?.formAccuracy || 75;
+
+            console.log("📊 Enhanced score received:", enhancedScore);
 
             const updatedRequests = requests.map((req) =>
               req.requestId === requestId
@@ -185,18 +250,68 @@ export default function ChainlinkEnhancement({
             }
 
             console.log(
-              `AI analysis complete! Enhanced score: ${enhancedScore}%`
+              `🎉 AI analysis complete! Enhanced score: ${enhancedScore}%`
             );
+            return;
           }
         }
+
+        // Check for AIAnalysisFailed events (error case)
+        const failedFilter = contract.filters.AIAnalysisFailed?.(
+          null,
+          requestId
+        );
+        if (failedFilter) {
+          console.log("🔍 Checking for AIAnalysisFailed events...");
+          const failedEvents = await contract.queryFilter(failedFilter, -1000);
+
+          if (failedEvents.length > 0) {
+            clearInterval(poll);
+            console.log("❌ AIAnalysisFailed event found!");
+
+            const event = failedEvents[0];
+            const reason = event.args?.reason || "Unknown error";
+            console.log("❌ Failure reason:", reason);
+
+            const updatedRequests = requests.map((req) =>
+              req.requestId === requestId
+                ? {
+                    ...req,
+                    status: "failed" as const,
+                    error: reason,
+                    fulfillmentTxHash: event.transactionHash,
+                  }
+                : req
+            );
+
+            saveRequests(updatedRequests);
+            setHasActiveRequest(false);
+            return;
+          }
+        }
+
+        console.log(
+          "⏳ No fulfillment events found yet, continuing to poll..."
+        );
       } catch (error) {
-        console.error("Error checking for fulfillment:", error);
+        console.error("❌ Error checking for fulfillment:", error);
+        if (error instanceof Error) {
+          console.error("Error details:", error.message);
+        }
       }
-    }, 15000); // Poll every 15 seconds
+    }, 10000); // Poll every 10 seconds
   };
 
   const canRequestAnalysis =
     isConnected && currentSession && signer && !hasActiveRequest;
+
+  // Check if we have any completed analysis for this session
+  const hasCompletedAnalysis = requests.some(
+    (req) => req.status === "fulfilled"
+  );
+  const latestCompletedRequest = requests.find(
+    (req) => req.status === "fulfilled"
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -248,17 +363,57 @@ export default function ChainlinkEnhancement({
             </button>
           </div>
 
-          <button
-            onClick={requestEnhancedAnalysis}
-            disabled={!canRequestAnalysis}
-            className={`w-full abs-btn-primary ${
-              canRequestAnalysis
-                ? "bg-lime-400 text-black hover:bg-lime-300"
-                : "bg-gray-500 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            🤖 Get AI Analysis (0.01 AVAX)
-          </button>
+          {hasCompletedAnalysis && latestCompletedRequest ? (
+            <>
+              <div className="bg-green-500 text-white p-4 rounded-lg mb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-black text-lg">
+                      ✅ Analysis Complete!
+                    </div>
+                    <div className="text-sm opacity-90">
+                      Enhanced Score: {latestCompletedRequest.enhancedScore}%
+                    </div>
+                  </div>
+                  <div className="text-right text-xs">
+                    <div>
+                      TX:{" "}
+                      {latestCompletedRequest.fulfillmentTxHash?.slice(0, 8)}
+                      ...
+                    </div>
+                    <div>
+                      {new Date(
+                        latestCompletedRequest.timestamp
+                      ).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={requestEnhancedAnalysis}
+                disabled={!canRequestAnalysis}
+                className={`w-full abs-btn-primary text-sm ${
+                  canRequestAnalysis
+                    ? "bg-blue-400 text-white hover:bg-blue-300"
+                    : "bg-gray-500 text-gray-300 cursor-not-allowed"
+                }`}
+              >
+                🔄 Request Another Analysis (0.01 AVAX)
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={requestEnhancedAnalysis}
+              disabled={!canRequestAnalysis}
+              className={`w-full abs-btn-primary ${
+                canRequestAnalysis
+                  ? "bg-lime-400 text-black hover:bg-lime-300"
+                  : "bg-gray-500 text-gray-300 cursor-not-allowed"
+              }`}
+            >
+              🤖 Get AI Analysis (0.01 AVAX)
+            </button>
+          )}
 
           {!isConnected && (
             <p className="text-xs text-center mt-2 opacity-75">

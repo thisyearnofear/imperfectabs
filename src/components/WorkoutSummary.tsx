@@ -57,12 +57,16 @@ export default function WorkoutSummary({
       </div>
 
       {enhancedFormScore && (
-        <div className="mt-6 abs-card-brutal !bg-purple-600 !text-white p-4 !border-black border-4">
-          <div className="text-sm font-mono uppercase !text-white">
-            AI Enhanced Score
+        <div className="mt-6 abs-card-brutal !bg-gradient-to-r !from-purple-600 !to-pink-600 !text-white p-6 !border-black border-4 relative overflow-hidden">
+          <div className="absolute top-2 right-2 text-2xl">🤖</div>
+          <div className="text-sm font-mono uppercase !text-white mb-2">
+            🚀 AI Enhanced Score
           </div>
-          <div className="text-4xl font-black !text-white">
+          <div className="text-5xl font-black !text-white mb-2">
             {enhancedFormScore}%
+          </div>
+          <div className="text-xs !text-white opacity-90">
+            Powered by Chainlink Functions
           </div>
         </div>
       )}

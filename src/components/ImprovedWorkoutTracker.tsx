@@ -669,21 +669,19 @@ export default function ImprovedWorkoutTracker() {
                     sessionStats={sessionStats}
                     enhancedFormScore={enhancedFormScore}
                   />
-                  {isWalletConnected &&
-                    poseDataRef.current.length > 0 &&
-                    !enhancedFormScore && (
-                      <ChainlinkEnhancement
-                        isConnected={isWalletConnected}
-                        currentSession={{
-                          reps: sessionStats.totalReps,
-                          formAccuracy: sessionStats.averageFormAccuracy,
-                          streak: sessionStats.bestStreak,
-                          duration: sessionStats.duration,
-                          poseData: poseDataRef.current,
-                        }}
-                        onEnhancedAnalysis={handleEnhancedAnalysis}
-                      />
-                    )}
+                  {isWalletConnected && poseDataRef.current.length > 0 && (
+                    <ChainlinkEnhancement
+                      isConnected={isWalletConnected}
+                      currentSession={{
+                        reps: sessionStats.totalReps,
+                        formAccuracy: sessionStats.averageFormAccuracy,
+                        streak: sessionStats.bestStreak,
+                        duration: sessionStats.duration,
+                        poseData: poseDataRef.current,
+                      }}
+                      onEnhancedAnalysis={handleEnhancedAnalysis}
+                    />
+                  )}
                   {isWalletConnected && (
                     <RewardSystem
                       contractInstance={contractInstance}
