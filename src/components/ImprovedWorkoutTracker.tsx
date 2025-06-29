@@ -27,9 +27,6 @@ interface WorkoutState {
   showSubmission: boolean;
 }
 
-// Note: MediaPipe drawing utilities are currently disabled to avoid SSR issues
-// Simple pose visualization is used instead (see pose rendering section below)
-
 // Type for MediaPipe landmark
 interface PoseLandmark {
   x: number;
@@ -37,6 +34,115 @@ interface PoseLandmark {
   z: number;
   visibility?: number;
 }
+
+// Pose connections for drawing skeleton (based on MediaPipe POSE_CONNECTIONS)
+const POSE_CONNECTIONS = [
+  // Face
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 7],
+  [0, 4],
+  [4, 5],
+  [5, 6],
+  [6, 8],
+  // Torso
+  [9, 10],
+  [11, 12],
+  [11, 13],
+  [13, 15],
+  [15, 17],
+  [15, 19],
+  [15, 21],
+  [12, 14],
+  [14, 16],
+  [16, 18],
+  [16, 20],
+  [16, 22],
+  [11, 23],
+  [12, 24],
+  [23, 24],
+  // Left arm
+  [11, 13],
+  [13, 15],
+  [15, 17],
+  [17, 19],
+  [19, 15],
+  [15, 21],
+  // Right arm
+  [12, 14],
+  [14, 16],
+  [16, 18],
+  [18, 20],
+  [20, 16],
+  [16, 22],
+  // Left leg
+  [23, 25],
+  [25, 27],
+  [27, 29],
+  [29, 31],
+  [27, 31],
+  // Right leg
+  [24, 26],
+  [26, 28],
+  [28, 30],
+  [30, 32],
+  [28, 32],
+];
+
+// Draw pose connections
+const drawPoseConnections = (
+  ctx: CanvasRenderingContext2D,
+  landmarks: PoseLandmark[],
+  connections: number[][],
+  width: number,
+  height: number
+) => {
+  ctx.strokeStyle = "#00FF00"; // Green connections
+  ctx.lineWidth = 2;
+
+  connections.forEach(([startIdx, endIdx]) => {
+    const startLandmark = landmarks[startIdx];
+    const endLandmark = landmarks[endIdx];
+
+    if (
+      startLandmark &&
+      endLandmark &&
+      (startLandmark.visibility || 0) > 0.5 &&
+      (endLandmark.visibility || 0) > 0.5
+    ) {
+      const startX = startLandmark.x * width;
+      const startY = startLandmark.y * height;
+      const endX = endLandmark.x * width;
+      const endY = endLandmark.y * height;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+  });
+};
+
+// Draw pose landmarks
+const drawPoseLandmarks = (
+  ctx: CanvasRenderingContext2D,
+  landmarks: PoseLandmark[],
+  width: number,
+  height: number
+) => {
+  ctx.fillStyle = "#FF0000"; // Red landmarks
+
+  landmarks.forEach((landmark) => {
+    if ((landmark.visibility || 0) > 0.5) {
+      const x = landmark.x * width;
+      const y = landmark.y * height;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  });
+};
 
 export default function ImprovedWorkoutTracker() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -201,16 +307,24 @@ export default function ImprovedWorkoutTracker() {
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-              // Simple pose visualization using basic canvas drawing
+              // Draw full pose skeleton with connections and landmarks
               if (results.poseLandmarks) {
-                ctx.fillStyle = "#FF0000";
-                results.poseLandmarks.forEach((landmark: PoseLandmark) => {
-                  const x = landmark.x * canvas.width;
-                  const y = landmark.y * canvas.height;
-                  ctx.beginPath();
-                  ctx.arc(x, y, 3, 0, 2 * Math.PI);
-                  ctx.fill();
-                });
+                // First draw connections (skeleton)
+                drawPoseConnections(
+                  ctx,
+                  results.poseLandmarks,
+                  POSE_CONNECTIONS,
+                  canvas.width,
+                  canvas.height
+                );
+
+                // Then draw landmarks (joints)
+                drawPoseLandmarks(
+                  ctx,
+                  results.poseLandmarks,
+                  canvas.width,
+                  canvas.height
+                );
               }
             }
           }

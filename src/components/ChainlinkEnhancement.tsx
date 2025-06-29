@@ -1,38 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { useWallet } from "../contexts/WalletContext";
 import LoadingState from "./LoadingState";
-
-// Type definition to avoid import issues
-interface ChainlinkFunctionsManager {
-  setSigner(signer: ethers.Signer): void;
-  getLinkBalance(address: string): Promise<string>;
-  createSubscription(): Promise<number>;
-  fundSubscription(subscriptionId: number, amount: string): Promise<void>;
-  getSubscriptionDetails(subscriptionId: number): Promise<{
-    balance: string;
-    owner?: string;
-    consumers: string[];
-  } | null>;
-  requestAIAnalysis(
-    sessionData: unknown,
-    subscriptionId?: number
-  ): Promise<{
-    requestId: string;
-    subscriptionId: number;
-    status: "pending";
-    sessionData: unknown;
-    timestamp: number;
-    transactionHash?: string;
-  }>;
-  setEncryptedSecretsConfig(config: {
-    slotId: number;
-    version: number;
-    secretsLocation: "DONHosted";
-  }): void;
-}
 
 interface ChainlinkRequest {
   requestId: string;
@@ -64,136 +35,15 @@ export default function ChainlinkEnhancement({
   const [isRequestingAnalysis, setIsRequestingAnalysis] = useState(false);
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [functionsManager, setFunctionsManager] =
-    useState<ChainlinkFunctionsManager | null>(null);
-  const [subscriptionId, setSubscriptionId] = useState<number>(0);
-  const [setupStatus, setSetupStatus] = useState<
-    "checking" | "ready" | "needs-setup" | "error"
-  >("checking");
 
   // Use wallet context instead of prop
   const { signer, provider } = useWallet();
 
-  // Chainlink Functions configuration
-  const MIN_LINK_BALANCE = 2; // Minimum LINK tokens needed
-  const REQUEST_COST = "0.1"; // Estimated cost in LINK
-
-  const initializeChainlinkFunctions = useCallback(async () => {
-    if (!isConnected || !signer || !provider) return;
-
-    try {
-      setSetupStatus("checking");
-
-      // Use the production implementation with API routes
-      console.log("Loading production Chainlink Functions implementation...");
-      const productionFunctions = await import(
-        "../lib/chainlink-functions-production"
-      );
-      const { createFunctionsManagerProduction } = productionFunctions;
-      const manager = createFunctionsManagerProduction(
-        provider
-      ) as ChainlinkFunctionsManager;
-      manager.setSigner(signer);
-
-      // Configure encrypted secrets (set these from environment variables)
-      const secretsSlotId =
-        process.env.NEXT_PUBLIC_CHAINLINK_SECRETS_SLOT_ID || "0";
-      const secretsVersion = process.env.NEXT_PUBLIC_CHAINLINK_SECRETS_VERSION;
-
-      if (secretsVersion) {
-        manager.setEncryptedSecretsConfig({
-          slotId: parseInt(secretsSlotId),
-          version: parseInt(secretsVersion),
-          secretsLocation: "DONHosted",
-        });
-        console.log("✅ Encrypted secrets configured for AI analysis");
-      } else {
-        console.log(
-          "⚠️ No encrypted secrets configured - will work with basic functionality"
-        );
-        console.log("💡 To enable AI analysis, run: npm run setup:secrets");
-      }
-
-      setFunctionsManager(manager);
-
-      await checkSetupStatus(manager, signer);
-      await loadRequests();
-    } catch (error) {
-      console.error("Failed to initialize Chainlink Functions:", error);
-      setSetupStatus("error");
-    }
-  }, [isConnected, signer, provider]);
-
   useEffect(() => {
-    if (isConnected && signer && provider) {
-      initializeChainlinkFunctions();
+    if (isConnected) {
+      loadRequests();
     }
-  }, [isConnected, signer, provider, initializeChainlinkFunctions]);
-
-  const checkSetupStatus = async (
-    manager: ChainlinkFunctionsManager,
-    signer: ethers.Signer
-  ) => {
-    try {
-      const address = await signer.getAddress();
-
-      // Check LINK balance
-      const balance = await manager.getLinkBalance(address);
-
-      // Check if we have a subscription ID from environment or config
-      const savedSubId =
-        process.env.NEXT_PUBLIC_CHAINLINK_SUBSCRIPTION_ID ||
-        localStorage.getItem("chainlink-subscription-id") ||
-        "15675"; // Your working subscription ID
-
-      if (savedSubId) {
-        const subId = parseInt(savedSubId);
-        setSubscriptionId(subId);
-
-        // Verify subscription exists and has balance
-        const details = await manager.getSubscriptionDetails(subId);
-        if (details && parseFloat(details.balance) > 0) {
-          setSetupStatus("ready");
-          return;
-        }
-      }
-
-      // Check if user has enough LINK to create subscription
-      if (parseFloat(balance) >= MIN_LINK_BALANCE) {
-        setSetupStatus("needs-setup");
-      } else {
-        setSetupStatus("error");
-      }
-    } catch (error) {
-      console.error("Setup check failed:", error);
-      setSetupStatus("error");
-    }
-  };
-
-  const createSubscription = async () => {
-    if (!functionsManager) return;
-
-    try {
-      setSetupStatus("checking");
-
-      console.log("Creating Chainlink Functions subscription...");
-      const subId = await functionsManager.createSubscription();
-
-      console.log("Funding subscription...");
-      await functionsManager.fundSubscription(subId, "2.0");
-
-      // Save subscription ID
-      setSubscriptionId(subId);
-      localStorage.setItem("chainlink-subscription-id", subId.toString());
-
-      setSetupStatus("ready");
-
-      console.log(`Subscription ${subId} created and funded!`);
-    } catch (error) {
-      console.error("Failed to create subscription:", error);
-      setSetupStatus("error");
-    }
-  };
+  }, [isConnected]);
 
   const loadRequests = () => {
     // Load from localStorage for demo
@@ -213,38 +63,48 @@ export default function ChainlinkEnhancement({
   };
 
   const requestEnhancedAnalysis = async () => {
-    if (!currentSession || !functionsManager || setupStatus !== "ready") return;
+    if (!currentSession || !signer) return;
 
     setIsRequestingAnalysis(true);
 
     try {
-      // Prepare session data for Chainlink Functions
-      const sessionData = {
-        reps: currentSession.reps,
-        formAccuracy: currentSession.formAccuracy,
-        streak: currentSession.streak,
-        duration: currentSession.duration,
-        poses: currentSession.poseData?.slice(0, 10) || [], // Limit data size for cost
-        angles: extractAnglesFromPoses(currentSession.poseData || []),
-        timestamp: Date.now(),
-        userId: "anonymous", // In production, use actual user ID
-        exerciseType: "abs",
-      };
+      console.log("Requesting AI analysis via consumer contract...");
 
-      console.log("Requesting AI analysis via Chainlink Functions...");
+      // Import contract integration
+      const { getContract } = await import("../lib/contract");
+      const contract = getContract(signer);
 
-      // Make real Chainlink Functions request
-      const functionsRequest = await functionsManager.requestAIAnalysis(
-        sessionData,
-        subscriptionId
+      // Call the consumer contract's submitWorkoutSession function
+      // This will internally trigger requestAIAnalysis via Chainlink Functions
+      const tx = await contract.submitWorkoutSession(
+        currentSession.reps,
+        currentSession.formAccuracy,
+        currentSession.streak,
+        currentSession.duration,
+        {
+          value: ethers.utils.parseEther("0.01"), // Submission fee
+          gasLimit: 500000, // Higher gas limit for Chainlink Functions
+        }
+      );
+
+      console.log("Transaction sent:", tx.hash);
+      const receipt = await tx.wait();
+      console.log("Transaction confirmed:", receipt.transactionHash);
+
+      // Extract request ID from events if available
+      const requestEvent = receipt.events?.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (e: any) => e.event === "RequestSent" || e.topics?.[0] === "0x..." // Add actual event signature
       );
 
       const newRequest: ChainlinkRequest = {
-        requestId: functionsRequest.requestId,
+        requestId:
+          requestEvent?.args?.requestId ||
+          `0x${Math.random().toString(16).substr(2, 64)}`,
         status: "pending",
-        sessionData,
+        sessionData: currentSession,
         timestamp: Date.now(),
-        transactionHash: functionsRequest.transactionHash,
+        transactionHash: receipt.transactionHash,
       };
 
       // Add to requests
@@ -252,10 +112,12 @@ export default function ChainlinkEnhancement({
       saveRequests(updatedRequests);
       setHasActiveRequest(true);
 
-      console.log(`Request sent with ID: ${functionsRequest.requestId}`);
+      console.log(
+        `AI analysis request submitted! TX: ${receipt.transactionHash}`
+      );
 
-      // Poll for response (in production, use event listeners)
-      pollForResponse(functionsRequest.requestId);
+      // Poll for response by checking contract events
+      pollForContractResponse(newRequest.requestId);
     } catch (error) {
       console.error("Failed to request enhanced analysis:", error);
       setHasActiveRequest(false);
@@ -264,9 +126,8 @@ export default function ChainlinkEnhancement({
     }
   };
 
-  const pollForResponse = async (requestId: string) => {
-    // In a real implementation, you'd listen for contract events
-    // For now, simulate with polling
+  const pollForContractResponse = async (requestId: string) => {
+    // Poll for Chainlink Functions fulfillment events from the consumer contract
     let attempts = 0;
     const maxAttempts = 30; // 5 minutes max
 
@@ -286,61 +147,56 @@ export default function ChainlinkEnhancement({
         return;
       }
 
-      // Check if response received (simulate for now)
-      if (Math.random() < 0.1) {
-        // 10% chance each poll
-        clearInterval(poll);
+      try {
+        // Check contract for fulfillment events
+        const { getContract } = await import("../lib/contract");
+        if (!provider) return;
+        const contract = getContract(provider);
 
-        // Simulate AI response
-        const baseScore = currentSession?.formAccuracy || 75;
-        const variance = Math.random() * 15 - 7.5; // ±7.5%
-        const enhancedScore = Math.max(
-          0,
-          Math.min(100, Math.round(baseScore + variance))
-        );
+        // Query for RequestFulfilled events
+        const filter = contract.filters.RequestFulfilled?.(requestId);
+        if (filter) {
+          const events = await contract.queryFilter(filter, -1000); // Last 1000 blocks
 
-        const updatedRequests = requests.map((req) =>
-          req.requestId === requestId
-            ? {
-                ...req,
-                status: "fulfilled" as const,
-                enhancedScore,
-                fulfillmentTxHash: `0x${Math.random()
-                  .toString(16)
-                  .substr(2, 64)}`,
-              }
-            : req
-        );
+          if (events.length > 0) {
+            clearInterval(poll);
 
-        saveRequests(updatedRequests);
-        setHasActiveRequest(false);
+            const event = events[0];
+            const enhancedScore = event.args?.response
+              ? parseInt(event.args.response.toString())
+              : currentSession?.formAccuracy || 75;
 
-        if (onEnhancedAnalysis) {
-          onEnhancedAnalysis(enhancedScore);
+            const updatedRequests = requests.map((req) =>
+              req.requestId === requestId
+                ? {
+                    ...req,
+                    status: "fulfilled" as const,
+                    enhancedScore,
+                    fulfillmentTxHash: event.transactionHash,
+                  }
+                : req
+            );
+
+            saveRequests(updatedRequests);
+            setHasActiveRequest(false);
+
+            if (onEnhancedAnalysis) {
+              onEnhancedAnalysis(enhancedScore);
+            }
+
+            console.log(
+              `AI analysis complete! Enhanced score: ${enhancedScore}%`
+            );
+          }
         }
-
-        console.log(`AI analysis complete! Enhanced score: ${enhancedScore}%`);
+      } catch (error) {
+        console.error("Error checking for fulfillment:", error);
       }
-    }, 10000); // Poll every 10 seconds
-  };
-
-  const extractAnglesFromPoses = (poseData: unknown[]): number[] => {
-    // Extract angles for AI analysis
-    return poseData
-      .map((pose) => {
-        if (!pose || typeof pose !== "object" || !("landmarks" in pose))
-          return 0;
-        // Simplified angle calculation for demo
-        return Math.random() * 180;
-      })
-      .slice(0, 50); // Limit to 50 angle measurements
+    }, 15000); // Poll every 15 seconds
   };
 
   const canRequestAnalysis =
-    isConnected &&
-    currentSession &&
-    setupStatus === "ready" &&
-    !hasActiveRequest;
+    isConnected && currentSession && signer && !hasActiveRequest;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -379,16 +235,10 @@ export default function ChainlinkEnhancement({
       ) : (
         <>
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-white border-4 border-black flex items-center justify-center mr-3">
-                <span className="text-xl">🔗</span>
-              </div>
-              <div>
-                <h3 className="text-xl font-black uppercase border-b-4 border-white pb-1">
-                  🤖 AI-POWERED FORM ANALYSIS
-                </h3>
-                <p className="text-sm font-mono">GET PROFESSIONAL FEEDBACK</p>
-              </div>
+            <div>
+              <h3 className="text-lg font-black uppercase">
+                🤖 AI Enhancement
+              </h3>
             </div>
             <button
               onClick={() => setShowHistory(!showHistory)}
@@ -398,58 +248,28 @@ export default function ChainlinkEnhancement({
             </button>
           </div>
 
-          {setupStatus === "ready" && (
-            <button
-              onClick={requestEnhancedAnalysis}
-              disabled={!canRequestAnalysis}
-              className={`w-full abs-btn-primary ${
-                canRequestAnalysis
-                  ? "bg-lime-400 text-black hover:bg-lime-300"
-                  : "bg-gray-500 text-gray-300 cursor-not-allowed"
-              }`}
-            >
-              {`🤖 Get Professional Analysis (~${REQUEST_COST} LINK)`}
-            </button>
+          <button
+            onClick={requestEnhancedAnalysis}
+            disabled={!canRequestAnalysis}
+            className={`w-full abs-btn-primary ${
+              canRequestAnalysis
+                ? "bg-lime-400 text-black hover:bg-lime-300"
+                : "bg-gray-500 text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            🤖 Get AI Analysis (0.01 AVAX)
+          </button>
+
+          {!isConnected && (
+            <p className="text-xs text-center mt-2 opacity-75">
+              Connect wallet to enable AI analysis
+            </p>
           )}
 
-          {setupStatus === "needs-setup" && (
-            <div className="text-center space-y-4">
-              <div className="bg-white/20 p-4 rounded-lg text-sm space-y-2">
-                <p className="font-bold">🎯 What you'll get:</p>
-                <ul className="text-left space-y-1">
-                  <li>• Professional form analysis</li>
-                  <li>• Personalized improvement tips</li>
-                  <li>• Enhanced accuracy scoring</li>
-                  <li>• Powered by AI & blockchain</li>
-                </ul>
-              </div>
-              <button
-                onClick={createSubscription}
-                className="w-full abs-btn-primary bg-blue-600 text-white"
-              >
-                🚀 Setup AI Analysis Subscription (2.0 LINK)
-              </button>
-              <p className="text-xs opacity-75">
-                One-time setup • Requires LINK tokens for AI requests
-              </p>
-            </div>
-          )}
-
-          {setupStatus === "error" && (
-            <div className="text-center text-red-300 font-mono text-sm">
-              <p>
-                Insufficient LINK balance to perform AI analysis. Please ensure
-                your wallet has at least 2 LINK on the Fuji testnet.
-              </p>
-              <a
-                href="https://faucets.chain.link/fuji"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline mt-2 inline-block"
-              >
-                Get LINK from Faucet
-              </a>
-            </div>
+          {isConnected && !currentSession && (
+            <p className="text-xs text-center mt-2 opacity-75">
+              Complete a workout session first
+            </p>
           )}
 
           {showHistory && requests.length > 0 && (
