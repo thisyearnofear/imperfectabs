@@ -45,6 +45,7 @@ export default function ChainlinkEnhancement({
     if (isConnected) {
       loadRequests();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
 
   const loadRequests = () => {
@@ -53,15 +54,34 @@ export default function ChainlinkEnhancement({
     if (saved) {
       const parsed = JSON.parse(saved);
       setRequests(parsed);
-      setHasActiveRequest(
-        parsed.some((r: ChainlinkRequest) => r.status === "pending")
+
+      // Check for active requests and resume polling if needed
+      const activeRequest = parsed.find(
+        (r: ChainlinkRequest) => r.status === "pending"
       );
+      if (activeRequest) {
+        console.log(
+          "🔄 Found active request on load, resuming polling:",
+          activeRequest.requestId
+        );
+        setHasActiveRequest(true);
+        // Resume polling for this request
+        pollForContractResponse(activeRequest.requestId);
+      } else {
+        setHasActiveRequest(false);
+      }
     }
   };
 
   const saveRequests = (newRequests: ChainlinkRequest[]) => {
+    console.log("💾 Saving requests to localStorage:", newRequests);
     localStorage.setItem("chainlink-requests", JSON.stringify(newRequests));
     setRequests(newRequests);
+
+    // Update hasActiveRequest based on current requests
+    const hasActive = newRequests.some((r) => r.status === "pending");
+    console.log("🔄 Has active request:", hasActive);
+    setHasActiveRequest(hasActive);
   };
 
   const requestEnhancedAnalysis = async () => {
@@ -191,8 +211,11 @@ export default function ChainlinkEnhancement({
         clearInterval(poll);
         console.log("⏰ Polling timeout reached, marking request as failed");
 
-        // Mark as failed
-        const updatedRequests = requests.map((req) =>
+        // Get fresh requests state from localStorage
+        const currentRequests = JSON.parse(
+          localStorage.getItem("chainlink-requests") || "[]"
+        );
+        const updatedRequests = currentRequests.map((req: ChainlinkRequest) =>
           req.requestId === requestId
             ? { ...req, status: "failed" as const }
             : req
@@ -236,15 +259,20 @@ export default function ChainlinkEnhancement({
 
             console.log("📊 Enhanced score received:", enhancedScore);
 
-            const updatedRequests = requests.map((req) =>
-              req.requestId === requestId
-                ? {
-                    ...req,
-                    status: "fulfilled" as const,
-                    enhancedScore,
-                    fulfillmentTxHash: event.transactionHash,
-                  }
-                : req
+            // Get fresh requests state from localStorage
+            const currentRequests = JSON.parse(
+              localStorage.getItem("chainlink-requests") || "[]"
+            );
+            const updatedRequests = currentRequests.map(
+              (req: ChainlinkRequest) =>
+                req.requestId === requestId
+                  ? {
+                      ...req,
+                      status: "fulfilled" as const,
+                      enhancedScore,
+                      fulfillmentTxHash: event.transactionHash,
+                    }
+                  : req
             );
 
             saveRequests(updatedRequests);
@@ -278,15 +306,20 @@ export default function ChainlinkEnhancement({
             const reason = event.args?.reason || "Unknown error";
             console.log("❌ Failure reason:", reason);
 
-            const updatedRequests = requests.map((req) =>
-              req.requestId === requestId
-                ? {
-                    ...req,
-                    status: "failed" as const,
-                    error: reason,
-                    fulfillmentTxHash: event.transactionHash,
-                  }
-                : req
+            // Get fresh requests state from localStorage
+            const currentRequests = JSON.parse(
+              localStorage.getItem("chainlink-requests") || "[]"
+            );
+            const updatedRequests = currentRequests.map(
+              (req: ChainlinkRequest) =>
+                req.requestId === requestId
+                  ? {
+                      ...req,
+                      status: "failed" as const,
+                      error: reason,
+                      fulfillmentTxHash: event.transactionHash,
+                    }
+                  : req
             );
 
             saveRequests(updatedRequests);
@@ -317,6 +350,26 @@ export default function ChainlinkEnhancement({
   const latestCompletedRequest = requests.find(
     (req) => req.status === "fulfilled"
   );
+
+  // Add a test button to simulate successful analysis (for debugging)
+  const simulateSuccess = () => {
+    const testRequest: ChainlinkRequest = {
+      requestId: `test_${Date.now()}`,
+      status: "fulfilled",
+      sessionData: currentSession,
+      enhancedScore: 95,
+      timestamp: Date.now(),
+      transactionHash: "0xtest123",
+      fulfillmentTxHash: "0xtest456",
+    };
+
+    const updatedRequests = [testRequest, ...requests].slice(0, 10);
+    saveRequests(updatedRequests);
+
+    if (onEnhancedAnalysis) {
+      onEnhancedAnalysis(95);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -417,6 +470,16 @@ export default function ChainlinkEnhancement({
               }`}
             >
               🤖 Get AI Analysis (0.01 AVAX)
+            </button>
+          )}
+
+          {/* Temporary test button for debugging */}
+          {process.env.NODE_ENV === "development" && (
+            <button
+              onClick={simulateSuccess}
+              className="w-full mt-2 abs-btn-primary bg-yellow-500 text-black text-xs py-2"
+            >
+              🧪 TEST: Simulate Success
             </button>
           )}
 
