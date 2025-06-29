@@ -308,7 +308,41 @@ export function WalletRequiredMessage({
 }
 
 export function MobileWalletIndicator() {
-  const { isConnected, address, error, connectedWallet } = useWallet();
+  const {
+    isConnected,
+    address,
+    error,
+    connectedWallet,
+    disconnectWallet,
+    isConnecting,
+    connectMetaMask,
+    connectWalletConnect,
+    connectCore,
+    clearError,
+  } = useWallet();
+  const [showMobileOptions, setShowMobileOptions] = useState(false);
+
+  const handleConnect = async (
+    walletType: "metamask" | "walletconnect" | "core"
+  ) => {
+    clearError();
+    try {
+      switch (walletType) {
+        case "metamask":
+          await connectMetaMask();
+          break;
+        case "walletconnect":
+          await connectWalletConnect();
+          break;
+        case "core":
+          await connectCore();
+          break;
+      }
+      setShowMobileOptions(false);
+    } catch (error) {
+      console.error("Mobile wallet connection failed:", error);
+    }
+  };
 
   if (error) {
     return (
@@ -329,19 +363,88 @@ export function MobileWalletIndicator() {
         ? "WC"
         : "WALLET";
     return (
-      <div className="text-right">
-        <div className="text-xs font-bold text-gray-600">
-          <ENSDisplay address={address} />
-        </div>
-        <div className="text-xs text-green-600">● {walletName}</div>
+      <div className="relative">
+        <button
+          onClick={() => setShowMobileOptions(!showMobileOptions)}
+          className="text-right"
+        >
+          <div className="text-xs font-bold text-gray-600">
+            <ENSDisplay address={address} />
+          </div>
+          <div className="text-xs text-green-600">● {walletName}</div>
+        </button>
+
+        {showMobileOptions && (
+          <>
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              onClick={() => setShowMobileOptions(false)}
+            />
+            <div className="absolute top-full right-0 mt-2 bg-white border-4 border-black z-50 min-w-32">
+              <button
+                onClick={() => {
+                  disconnectWallet();
+                  setShowMobileOptions(false);
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+              >
+                DISCONNECT
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="text-right">
-      <div className="text-xs font-bold text-gray-600">AVALANCHE</div>
-      <div className="text-xs text-yellow-600">● READY</div>
+    <div className="relative">
+      <button
+        onClick={() => setShowMobileOptions(!showMobileOptions)}
+        disabled={isConnecting}
+        className="text-right"
+      >
+        <div className="text-xs font-bold text-gray-600">
+          {isConnecting ? "CONNECTING..." : "AVALANCHE"}
+        </div>
+        <div className="text-xs text-yellow-600">
+          ● {isConnecting ? "WAIT" : "CONNECT"}
+        </div>
+      </button>
+
+      {showMobileOptions && !isConnected && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setShowMobileOptions(false)}
+          />
+          <div className="absolute top-full right-0 mt-2 bg-white border-4 border-black z-50 min-w-40">
+            <div className="p-2 space-y-2">
+              <button
+                onClick={() => handleConnect("metamask")}
+                disabled={isConnecting}
+                className="w-full text-left px-3 py-2 text-xs font-bold bg-orange-500 text-white hover:bg-orange-600"
+              >
+                🦊 METAMASK
+              </button>
+              <button
+                onClick={() => handleConnect("core")}
+                disabled={isConnecting}
+                className="w-full text-left px-3 py-2 text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+              >
+                🏔️ CORE
+              </button>
+              <button
+                onClick={() => handleConnect("walletconnect")}
+                disabled={isConnecting}
+                className="w-full text-left px-3 py-2 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700"
+              >
+                🔗 WALLETCONNECT
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
