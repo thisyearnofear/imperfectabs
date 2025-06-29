@@ -201,7 +201,7 @@ export default function ImprovedWorkoutTracker() {
   // Wallet context
   const { isConnected: isWalletConnected, address: walletAddress } =
     useWallet();
-  const { contract } = useContract();
+  const { contractInstance } = useContract();
 
   // Auto-detect mobile device
   const [isMobile, setIsMobile] = useState(false);
@@ -686,7 +686,7 @@ export default function ImprovedWorkoutTracker() {
                     )}
                   {isWalletConnected && (
                     <RewardSystem
-                      contract={contract}
+                      contractInstance={contractInstance}
                       userAddress={walletAddress || null}
                     />
                   )}

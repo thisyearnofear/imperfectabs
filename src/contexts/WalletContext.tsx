@@ -22,6 +22,7 @@ import {
   cleanupWalletConnect,
   getWalletConnectProvider,
   createConnectionTimeout,
+  forceDisconnectAllSessions,
 } from "../utils/walletConnectUtils";
 
 interface WalletState {
@@ -361,9 +362,18 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   );
 
   const disconnectWallet = useCallback(async () => {
-    // Disconnect WalletConnect if active
+    // Force disconnect WalletConnect if active
     if (walletConnectProvider) {
-      await walletConnectProvider.disconnect();
+      try {
+        await forceDisconnectAllSessions(walletConnectProvider);
+        await cleanupWalletConnect({
+          provider: walletConnectProvider,
+          clearLocalStorage: true,
+          clearGlobalProvider: true,
+        });
+      } catch (e) {
+        console.log("WalletConnect disconnect cleanup error:", e);
+      }
       setWalletConnectProvider(null);
     }
 
@@ -371,6 +381,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     localStorage.removeItem("walletConnected");
     localStorage.removeItem("walletAddress");
     localStorage.removeItem("connectedWallet");
+
+    // Clear modal state
+    setIsModalOpen(false);
+    setModalUri(null);
+    setIsModalConnecting(false);
   }, [walletConnectProvider]);
 
   const checkConnection = useCallback(async () => {

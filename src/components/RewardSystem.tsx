@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { ethers } from "ethers";
+import { ImperfectAbsContract } from "../lib/contractIntegration";
 
 interface RewardInfo {
   totalEarned: string;
@@ -21,10 +21,10 @@ interface RewardConfig {
 }
 
 export default function RewardSystem({
-  contract,
+  contractInstance,
   userAddress,
 }: {
-  contract: ethers.Contract | null;
+  contractInstance: ImperfectAbsContract | null;
   userAddress: string | null;
 }) {
   const [rewardInfo, setRewardInfo] = useState<RewardInfo | null>(null);
@@ -33,61 +33,69 @@ export default function RewardSystem({
   const [claiming, setClaiming] = useState(false);
 
   const loadRewardData = useCallback(async () => {
-    if (!contract || !userAddress) return;
+    if (!contractInstance || !userAddress) return;
 
     try {
       setLoading(true);
 
-      // Get user reward info
-      const userReward = await contract.getUserRewardInfo(userAddress);
-      setRewardInfo({
-        totalEarned: ethers.utils.formatEther(userReward.totalEarned),
-        lastClaimed: new Date(
-          Number(userReward.lastClaimed) * 1000
-        ).toLocaleDateString(),
-        currentPeriodEarned: ethers.utils.formatEther(
-          userReward.currentPeriodEarned
-        ),
-        rank: Number(userReward.rank),
-        pendingAmount: ethers.utils.formatEther(userReward.pendingAmount),
-      });
+      // Get user reward info using the contract instance
+      const userReward = await contractInstance.getUserRewardInfo(userAddress);
+      if (userReward) {
+        setRewardInfo({
+          totalEarned: userReward.totalEarned,
+          lastClaimed: new Date(
+            userReward.lastClaimed * 1000
+          ).toLocaleDateString(),
+          currentPeriodEarned: userReward.currentPeriodEarned,
+          rank: userReward.rank,
+          pendingAmount: userReward.pendingAmount,
+        });
+      }
 
-      // Get reward config
-      const config = await contract.getRewardConfig();
-      setRewardConfig({
-        distributionPeriod: Number(config.distributionPeriod),
-        topPerformersCount: Number(config.topPerformersCount),
-        lastDistribution: Number(config.lastDistribution),
-        totalRewardPool: ethers.utils.formatEther(config.totalRewardPool),
-        autoDistribution: config.autoDistribution,
-        timeUntilNextDistribution: Number(config.timeUntilNextDistribution),
-      });
+      // Get reward config using the contract instance
+      const config = await contractInstance.getRewardConfig();
+      if (config) {
+        setRewardConfig({
+          distributionPeriod: config.distributionPeriod,
+          topPerformersCount: config.topPerformersCount,
+          lastDistribution: config.lastDistribution,
+          totalRewardPool: config.totalRewardPool,
+          autoDistribution: config.autoDistribution,
+          timeUntilNextDistribution: config.timeUntilNextDistribution,
+        });
+      }
     } catch (error) {
       console.error("Error loading reward data:", error);
     } finally {
       setLoading(false);
     }
-  }, [contract, userAddress]);
+  }, [contractInstance, userAddress]);
 
   useEffect(() => {
-    if (contract && userAddress) {
+    if (contractInstance && userAddress) {
       loadRewardData();
     }
-  }, [contract, userAddress, loadRewardData]);
+  }, [contractInstance, userAddress, loadRewardData]);
 
   const claimRewards = async () => {
-    if (!contract || !rewardInfo || parseFloat(rewardInfo.pendingAmount) === 0)
+    if (
+      !contractInstance ||
+      !rewardInfo ||
+      parseFloat(rewardInfo.pendingAmount) === 0
+    )
       return;
 
     try {
       setClaiming(true);
-      const tx = await contract.claimRewards();
-      await tx.wait();
+      const result = await contractInstance.claimRewards();
 
-      // Reload data after claiming
-      await loadRewardData();
-
-      alert("Rewards claimed successfully!");
+      if (result.success) {
+        // Reload data after claiming
+        await loadRewardData();
+        alert("Rewards claimed successfully!");
+      } else {
+        throw new Error(result.error?.message || "Failed to claim rewards");
+      }
     } catch (error) {
       console.error("Error claiming rewards:", error);
       alert("Failed to claim rewards. Please try again.");
@@ -106,12 +114,14 @@ export default function RewardSystem({
     return `${minutes}m`;
   };
 
-  if (!contract || !userAddress) {
+  if (!contractInstance || !userAddress) {
     return (
-      <div className="bg-gray-100 p-6 rounded-lg">
-        <h3 className="text-xl font-bold mb-4">Reward System</h3>
-        <p className="text-gray-600">
-          Connect your wallet to view reward information
+      <div className="abs-card-brutal !bg-yellow-100 !text-black p-6 border-4 border-yellow-500">
+        <h3 className="text-xl font-bold mb-4 !text-black">🏆 Reward System</h3>
+        <p className="!text-gray-700">
+          {!contractInstance
+            ? "Contract not initialized"
+            : "Connect your wallet to view reward information"}
         </p>
       </div>
     );
@@ -119,9 +129,9 @@ export default function RewardSystem({
 
   if (loading) {
     return (
-      <div className="bg-gray-100 p-6 rounded-lg">
-        <h3 className="text-xl font-bold mb-4">Reward System</h3>
-        <p className="text-gray-600">Loading reward data...</p>
+      <div className="abs-card-brutal !bg-blue-100 !text-black p-6 border-4 border-blue-500">
+        <h3 className="text-xl font-bold mb-4 !text-black">🏆 Reward System</h3>
+        <p className="!text-gray-700">Loading reward data...</p>
       </div>
     );
   }
