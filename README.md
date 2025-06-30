@@ -21,11 +21,12 @@ A **cutting-edge fitness platform** that combines real-time AI pose detection wi
 - **Transparent Leaderboard**: All scores verified on Avalanche blockchain
 - **Smart Contracts**: Automated scoring and reward distribution
 - **Chainlink Automation**: Weather bonuses updated every 6 hours
+- **Chainlink VRF**: Cryptographically secure random daily challenges
 - **Fair Competition**: Tamper-proof scoring system
 
 ### 🎯 **Gamified Experience**
 - **Real-time Feedback**: Instant form corrections during workouts
-- **Progressive Difficulty**: Adaptive exercise recommendations
+- **Daily Challenges**: Chainlink VRF-powered random challenges with bonus rewards
 - **Achievement System**: Unlock rewards based on performance
 - **Global Leaderboard**: Compete with users worldwide
 
@@ -59,6 +60,7 @@ WeatherXM Pro API (Premium Stations) → WeatherAPI.com (Global) → Simulated D
 
 ### 🔧 **Advanced Integrations**
 - **Chainlink Automation**: Automated weather updates every 6 hours
+- **Chainlink VRF**: Verifiable random daily challenges and rewards
 - **WeatherXM Pro**: Premium weather station data (Europe focus)
 - **WeatherAPI.com**: Global weather coverage with 99.9% uptime
 - **Smart Caching**: Optimized API usage with 30-minute cache
@@ -73,9 +75,10 @@ WeatherXM Pro API (Premium Stations) → WeatherAPI.com (Global) → Simulated D
 5. **Start Exercising**: AI tracks your form and counts reps
 6. **Submit Score**: Pay small fee to record on blockchain
 
-### 🌤️ **Weather Bonuses**
+### 🌤️ **Weather Bonuses & Daily Challenges**
 - **Automatic**: Seasonal bonuses apply automatically
 - **Real Weather**: Toggle for live weather bonuses
+- **Daily Challenges**: Random VRF-generated challenges with bonus multipliers
 - **API Status**: See which weather services are active
 - **Cache Info**: Check when weather data was last updated
 
@@ -234,25 +237,45 @@ Or use the in-app testing:
 - **Lighting**: Good lighting for accurate detection
 - **Position**: Full body visible in frame
 
-## 🚧 Development Roadmap
+## 🏗️ Chainlink Infrastructure
 
-### 🎯 **Phase 2 - Enhanced AI** (Q1 2024)
-- [ ] OpenAI GPT-4 integration for personalized coaching
-- [ ] Advanced form analysis with specific feedback
-- [ ] Injury prevention recommendations
-- [ ] Custom workout plan generation
+### 🤖 **Core Contract System**
+- **Main Contract**: `ImperfectAbs.sol` - Core fitness scoring and leaderboard
+- **Automation Service**: Weather data updates every 6 hours via Chainlink Keepers
+- **VRF Service**: Daily challenges generated with verifiable randomness
+- **Functions Service**: AI-enhanced scoring (configurable for future GPT integration)
 
-### 🌍 **Phase 3 - Global Expansion** (Q2 2024)
-- [ ] Multi-language support
-- [ ] Additional weather data sources
-- [ ] Regional leaderboards
-- [ ] Mobile app development
+### 🔗 **Chainlink Integrations**
+- **Chainlink Automation**: 
+  - Weather bonus updates every 6 hours
+  - Automatic leaderboard maintenance
+  - Reward distribution scheduling
+- **Chainlink VRF v2**:
+  - Cryptographically secure random daily challenges
+  - Fair challenge type and difficulty selection
+  - Bonus multiplier randomization
+- **Chainlink Functions** (Ready):
+  - Encrypted API key management for AI services
+  - Secure off-chain computation integration
+  - Prepared for GPT-4 coaching features
 
-### 🔗 **Phase 4 - Cross-Chain** (Q3 2024)
-- [ ] Polygon integration
-- [ ] Ethereum L2 support
-- [ ] Cross-chain leaderboards
-- [ ] NFT achievement system
+### 🎯 **Daily Challenge System**
+- **Challenge Types**: Reps, Duration, Streak, Accuracy, Combo challenges
+- **VRF Generation**: New challenge every 24 hours with verifiable randomness
+- **Bonus Rewards**: 5-50% score multipliers for challenge completion
+- **Fair Distribution**: No central authority can manipulate challenge generation
+
+### 🌤️ **Weather Oracle Integration**
+- **Multi-Source Data**: WeatherXM Pro + WeatherAPI.com redundancy
+- **Automated Updates**: Chainlink Automation triggers weather data refresh
+- **Global Coverage**: Fallback systems ensure worldwide functionality
+- **Cost Optimization**: Smart caching reduces oracle call frequency
+
+### 🚧 **Future Enhancements**
+- [ ] OpenAI GPT-4 integration via Chainlink Functions
+- [ ] Cross-chain expansion using Chainlink CCIP
+- [ ] Additional oracle data sources (fitness metrics, health data)
+- [ ] Enhanced VRF features (tournament brackets, seasonal events)
 
 ## 📊 Technical Specifications
 
@@ -267,8 +290,9 @@ Or use the in-app testing:
 - **Network**: Avalanche Fuji Testnet
 - **Language**: Solidity 0.8.19
 - **Tools**: Hardhat + Chainlink Functions
-- **Automation**: Chainlink Keepers
-- **Oracles**: Chainlink Price Feeds
+- **Automation**: Chainlink Keepers for weather updates
+- **Randomness**: Chainlink VRF v2 for daily challenges
+- **Oracles**: Multi-source weather data integration
 
 ### 🌐 **Weather Integration**
 - **Primary**: WeatherAPI.com REST API
