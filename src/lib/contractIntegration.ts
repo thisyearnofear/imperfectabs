@@ -5,26 +5,26 @@ import { ethers } from "ethers";
 
 // Contract configuration
 export const CONTRACT_CONFIG = {
-  address: "0xFBE99DcD3b2d93b1c8FFabC26427383dAAbA05d1",
+  address: "0x060F0F142D5BfC721a7C53D00B4bAD77Ad82C776", // Minimal contract for basic functionality
   chainId: 43113, // Avalanche Fuji
   rpcUrl: "https://api.avax-test.network/ext/bc/C/rpc",
   explorerUrl: "https://testnet.snowtrace.io",
   submissionFee: "0.01", // AVAX
   cooldownSeconds: 60,
-  maxRepsPerSession: 200,
+  maxRepsPerSession: 500,
   minFormAccuracy: 50,
 } as const;
 
 // Enhanced ABI with all contract functions
 export const LEADERBOARD_ABI = [
-  // Main submission function
-  "function submitWorkoutSession(uint256 _reps, uint256 _formAccuracy, uint256 _streak, uint256 _duration) external payable",
+  // Main submission function with weather region support
+  "function submitWorkoutSession(uint256 _reps, uint256 _formAccuracy, uint256 _streak, uint256 _duration, string _region) external payable",
 
   // View functions
   "function getLeaderboard() external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp)[])",
   "function getTopPerformers(uint256 _count) external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp)[])",
   "function getUserAbsScore(address _user) external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp))",
-  "function getUserAbsScoreSafe(address _user) external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp), bool)",
+  "function getUserAbsScoreSafe(address _user) external view returns (uint256 totalReps, uint256 averageAccuracy, uint256 bestStreak, uint256 sessionCount)",
   "function getUserSessions(address _user) external view returns (tuple(uint256 reps, uint256 formAccuracy, uint256 streak, uint256 duration, uint256 timestamp)[])",
   "function getTimeUntilNextSubmission(address _user) external view returns (uint256)",
   "function calculateCompositeScore(uint256 _reps, uint256 _formAccuracy, uint256 _streak) external pure returns (uint256)",
@@ -135,14 +135,33 @@ export class ImperfectAbsContract {
     this.contract = new ethers.Contract(
       CONTRACT_CONFIG.address,
       LEADERBOARD_ABI,
-      this.signer,
+      this.signer
     );
 
-    // Verify network
-    const network = await provider.getNetwork();
+    // Verify network with retry logic
+    let network;
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        network = await provider.getNetwork();
+        break;
+      } catch (error) {
+        console.log(
+          `Network detection attempt ${4 - retries} failed, retrying...`
+        );
+        retries--;
+        if (retries === 0) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    if (!network) {
+      throw new Error("Failed to detect network after multiple attempts");
+    }
+
     if (network.chainId !== CONTRACT_CONFIG.chainId) {
       throw new Error(
-        `Wrong network. Please switch to Avalanche Fuji testnet.`,
+        `Wrong network. Please switch to Avalanche Fuji testnet. Current: ${network.chainId}, Expected: ${CONTRACT_CONFIG.chainId}`
       );
     }
   }
@@ -153,12 +172,12 @@ export class ImperfectAbsContract {
     options?: {
       onConfirmation?: (txHash: string) => void;
       onError?: (error: ContractError) => void;
-    },
+    }
   ): Promise<{ success: boolean; txHash?: string; error?: ContractError }> {
     try {
       if (!this.contract || !this.signer) {
         throw new Error(
-          "Contract not initialized. Please connect wallet first.",
+          "Contract not initialized. Please connect wallet first."
         );
       }
 
@@ -184,21 +203,38 @@ export class ImperfectAbsContract {
 
       // Prepare transaction
       const submissionFee = ethers.utils.parseEther(
-        CONTRACT_CONFIG.submissionFee,
+        CONTRACT_CONFIG.submissionFee
       );
       const gasLimit = 300000; // Conservative gas limit for Avalanche
 
       // Submit transaction
+      // Default to temperate region for now - will add location detection later
+      const userRegion = "temperate";
+
+      console.log("🔧 Submission parameters:", {
+        reps: sessionData.reps,
+        formAccuracy: sessionData.formAccuracy,
+        streak: sessionData.streak,
+        duration: sessionData.duration,
+        region: userRegion,
+        fee: ethers.utils.formatEther(submissionFee),
+        gasLimit,
+        userAddress,
+      });
+
       const tx = await this.contract.submitWorkoutSession(
         sessionData.reps,
         sessionData.formAccuracy,
         sessionData.streak,
         sessionData.duration,
+        userRegion,
         {
           value: submissionFee,
           gasLimit,
-        },
+        }
       );
+
+      console.log("✅ Transaction submitted:", tx.hash);
 
       options?.onConfirmation?.(tx.hash);
 
@@ -210,7 +246,9 @@ export class ImperfectAbsContract {
         txHash: receipt.transactionHash,
       };
     } catch (error: unknown) {
+      console.error("❌ Submission error:", error);
       const contractError = this.parseContractError(error);
+      console.error("❌ Parsed contract error:", contractError);
       options?.onError?.(contractError);
       return { success: false, error: contractError };
     }
@@ -278,8 +316,9 @@ export class ImperfectAbsContract {
         throw new Error("Contract not initialized");
       }
 
-      const remainingTime =
-        await this.contract.getTimeUntilNextSubmission(userAddress);
+      const remainingTime = await this.contract.getTimeUntilNextSubmission(
+        userAddress
+      );
       return {
         canSubmit: remainingTime.toNumber() === 0,
         remainingTime: remainingTime.toNumber(),
@@ -295,18 +334,18 @@ export class ImperfectAbsContract {
     try {
       if (!this.contract) return null;
 
-      const [score, exists] =
+      const [totalReps, averageAccuracy, bestStreak, sessionCount] =
         await this.contract.getUserAbsScoreSafe(userAddress);
 
-      if (!exists) return null;
+      if (sessionCount === 0) return null;
 
       return {
-        user: score.user,
-        totalReps: score.totalReps.toNumber(),
-        averageFormAccuracy: score.averageFormAccuracy.toNumber(),
-        bestStreak: score.bestStreak.toNumber(),
-        sessionsCompleted: score.sessionsCompleted.toNumber(),
-        timestamp: score.timestamp.toNumber(),
+        user: userAddress,
+        totalReps: totalReps.toNumber(),
+        averageFormAccuracy: averageAccuracy.toNumber(),
+        bestStreak: bestStreak.toNumber(),
+        sessionsCompleted: sessionCount.toNumber(),
+        timestamp: Date.now(), // V4 doesn't return timestamp, use current time
       };
     } catch (error) {
       console.error("Error getting user score:", error);
@@ -363,7 +402,7 @@ export class ImperfectAbsContract {
   async calculateScore(
     reps: number,
     formAccuracy: number,
-    streak: number,
+    streak: number
   ): Promise<number> {
     try {
       if (!this.contract) return 0;
@@ -371,7 +410,7 @@ export class ImperfectAbsContract {
       const score = await this.contract.calculateCompositeScore(
         reps,
         formAccuracy,
-        streak,
+        streak
       );
       return score.toNumber();
     } catch (error) {
@@ -381,10 +420,17 @@ export class ImperfectAbsContract {
   }
 
   // Reward system methods
-  async claimRewards(): Promise<{ success: boolean; txHash?: string; error?: ContractError }> {
+  async claimRewards(): Promise<{
+    success: boolean;
+    txHash?: string;
+    error?: ContractError;
+  }> {
     try {
       if (!this.contract) {
-        return { success: false, error: { code: "NO_CONTRACT", message: "Contract not initialized" } };
+        return {
+          success: false,
+          error: { code: "NO_CONTRACT", message: "Contract not initialized" },
+        };
       }
 
       const tx = await this.contract.claimRewards();
@@ -516,7 +562,7 @@ export class ImperfectAbsContract {
       user: string,
       reps: number,
       formAccuracy: number,
-      streak: number,
+      streak: number
     ) => void;
     onSessionRecorded?: (user: string, sessionIndex: number) => void;
   }) {
@@ -528,7 +574,7 @@ export class ImperfectAbsContract {
           user,
           reps.toNumber(),
           formAccuracy.toNumber(),
-          streak.toNumber(),
+          streak.toNumber()
         );
       });
     }
@@ -549,10 +595,46 @@ export class ImperfectAbsContract {
 
   // Parse contract errors into user-friendly messages
   private parseContractError(error: unknown): ContractError {
-    const errorObj = error as { message?: string; reason?: string };
-    const message = errorObj?.message || errorObj?.reason || "Unknown error";
+    const errorObj = error as {
+      message?: string;
+      reason?: string;
+      code?: string;
+      data?: { message?: string };
+    };
+    const message =
+      errorObj?.message ||
+      errorObj?.reason ||
+      errorObj?.data?.message ||
+      "Unknown error";
 
-    // Parse specific contract errors
+    console.log("🔍 Raw error for parsing:", { errorObj, message });
+
+    // Parse V4 contract specific errors
+    if (message.includes("InvalidReps")) {
+      return {
+        code: "INVALID_REPS",
+        message: `Invalid reps count. Must be between 1 and ${CONTRACT_CONFIG.maxRepsPerSession}`,
+      };
+    }
+
+    if (message.includes("InvalidAccuracy")) {
+      return {
+        code: "INVALID_ACCURACY",
+        message: "Form accuracy must be between 0% and 100%",
+      };
+    }
+
+    if (message.includes("CooldownActive")) {
+      const match = message.match(/(\d+)/);
+      const remainingTime = match ? parseInt(match[1]) : 60;
+      return {
+        code: "COOLDOWN_ACTIVE",
+        message: `Please wait ${remainingTime} seconds before next submission`,
+        remainingTime,
+      };
+    }
+
+    // Legacy error patterns
     if (message.includes("CooldownNotExpired")) {
       const match = message.match(/(\d+)/);
       const remainingTime = match ? parseInt(match[1]) : 60;
@@ -585,7 +667,11 @@ export class ImperfectAbsContract {
       };
     }
 
-    if (message.includes("user rejected")) {
+    // Transaction errors
+    if (
+      message.includes("user rejected") ||
+      message.includes("User rejected")
+    ) {
       return {
         code: "USER_REJECTED",
         message: "Transaction was cancelled by user",
@@ -596,6 +682,25 @@ export class ImperfectAbsContract {
       return {
         code: "INSUFFICIENT_FUNDS",
         message: `You need at least ${CONTRACT_CONFIG.submissionFee} AVAX to submit`,
+      };
+    }
+
+    // Network/connection errors
+    if (
+      message.includes("network changed") ||
+      message.includes("NETWORK_ERROR")
+    ) {
+      return {
+        code: "NETWORK_ERROR",
+        message: "Network connection issue. Please refresh and try again.",
+      };
+    }
+
+    if (message.includes("call revert exception")) {
+      return {
+        code: "CONTRACT_REVERT",
+        message:
+          "Contract call failed. Please check your parameters and try again.",
       };
     }
 
@@ -613,6 +718,74 @@ export class ImperfectAbsContract {
   // Get contract URL for explorer
   getContractUrl(): string {
     return `${CONTRACT_CONFIG.explorerUrl}/address/${CONTRACT_CONFIG.address}`;
+  }
+
+  // V4 New Functions - Daily Challenges
+  async getCurrentChallenge(): Promise<{
+    challengeType: number;
+    target: number;
+    bonusMultiplier: number;
+    expiresAt: number;
+    active: boolean;
+  } | null> {
+    try {
+      if (!this.contract) return null;
+      const challenge = await this.contract.getCurrentChallenge();
+      return {
+        challengeType: challenge.challengeType.toNumber(),
+        target: challenge.target.toNumber(),
+        bonusMultiplier: challenge.bonusMultiplier.toNumber(),
+        expiresAt: challenge.expiresAt.toNumber(),
+        active: challenge.active,
+      };
+    } catch (error) {
+      console.error("Error getting current challenge:", error);
+      return null;
+    }
+  }
+
+  async isChallengeCompleted(userAddress: string): Promise<boolean> {
+    try {
+      if (!this.contract) return false;
+      return await this.contract.challengeCompleted(userAddress);
+    } catch (error) {
+      console.error("Error checking challenge completion:", error);
+      return false;
+    }
+  }
+
+  // V4 New Functions - Weather Bonuses
+  async getSeasonalBonus(month: number): Promise<number> {
+    try {
+      if (!this.contract) return 0;
+      const bonus = await this.contract.seasonalBonus(month);
+      return bonus.toNumber();
+    } catch (error) {
+      console.error("Error getting seasonal bonus:", error);
+      return 0;
+    }
+  }
+
+  async getRegionalBonus(region: string): Promise<number> {
+    try {
+      if (!this.contract) return 0;
+      const bonus = await this.contract.regionBonus(region);
+      return bonus.toNumber();
+    } catch (error) {
+      console.error("Error getting regional bonus:", error);
+      return 0;
+    }
+  }
+
+  async getLastWeatherUpdate(): Promise<number> {
+    try {
+      if (!this.contract) return 0;
+      const timestamp = await this.contract.lastWeatherUpdate();
+      return timestamp.toNumber();
+    } catch (error) {
+      console.error("Error getting last weather update:", error);
+      return 0;
+    }
   }
 }
 

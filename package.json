@@ -23,13 +23,13 @@
     "setup:secrets:simple": "cd . && node scripts/setup-secrets-simple.js",
     "setup:secrets:production": "cd . && node scripts/setup-secrets-production.js",
     "chainlink:status": "cd . && node scripts/setup-chainlink.js status",
-    "setup:secrets": "cd . && node scripts/setup-encrypted-secrets.js",
     "setup:secrets:prod": "cd . && node scripts/setup-secrets-production.js",
     "setup:secrets:env": "cd . && PRIVATE_KEY=$PRIVATE_KEY OPENAI_API_KEY=$OPENAI_API_KEY node scripts/setup-encrypted-secrets.js",
     "test:env": "node scripts/test-env.js"
   },
   "dependencies": {
     "@chainlink/contracts": "^1.4.0",
+    "@chainlink/contracts-ccip": "^1.6.0",
     "@chainlink/functions-toolkit": "^0.3.2",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/drawing_utils": "^0.3.1675466124",

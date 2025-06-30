@@ -93,6 +93,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const updateBalance = useCallback(
     async (provider: ethers.providers.Web3Provider, address: string) => {
       try {
+        // Wait a bit for network to stabilize
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Force provider to detect current network before balance fetch
+        await provider.detectNetwork();
+
         const balance = await provider.getBalance(address);
         const balanceFormatted = ethers.utils.formatEther(balance);
         setState((prev) => ({
@@ -101,6 +107,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         }));
       } catch (error) {
         console.error("Failed to fetch balance:", error);
+        // Don't throw error, just log it - balance fetch shouldn't break the app
       }
     },
     []
@@ -321,15 +328,38 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         return;
       }
 
+      console.log(`🔄 Attempting to switch to network ${chainId}...`);
       const chainIdHex = `0x${chainId.toString(16)}`;
 
       try {
-        await state.provider.send("wallet_switchEthereumChain", [
-          { chainId: chainIdHex },
-        ]);
+        // Clear any previous errors
+        setState((prev) => ({ ...prev, error: null }));
+
+        // For WalletConnect, we might need to handle differently
+        if (state.connectedWallet === "walletconnect") {
+          console.log("🔗 Switching network via WalletConnect...");
+          // WalletConnect might need special handling
+          await state.provider.send("wallet_switchEthereumChain", [
+            { chainId: chainIdHex },
+          ]);
+        } else {
+          // For MetaMask and Core
+          console.log("🦊 Switching network via browser wallet...");
+          await state.provider.send("wallet_switchEthereumChain", [
+            { chainId: chainIdHex },
+          ]);
+        }
+
+        console.log(`✅ Successfully switched to network ${chainId}`);
+
+        // Update the chain ID in state
+        setState((prev) => ({ ...prev, chainId }));
       } catch (switchError: unknown) {
+        console.error("❌ Network switch error:", switchError);
+
         // This error code indicates that the chain has not been added to MetaMask.
         if ((switchError as { code: number }).code === 4902) {
+          console.log("🔧 Network not found, attempting to add...");
           try {
             await state.provider.send("wallet_addEthereumChain", [
               {
@@ -344,21 +374,26 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                 blockExplorerUrls: [CONTRACT_CONFIG.explorerUrl],
               },
             ]);
-          } catch {
+            console.log("✅ Network added successfully");
+            setState((prev) => ({ ...prev, chainId }));
+          } catch (addError) {
+            console.error("❌ Failed to add network:", addError);
             setState((prev) => ({
               ...prev,
               error: "Failed to add the network. Please add it manually.",
             }));
           }
         } else {
+          const errorMessage =
+            (switchError as Error).message || "Failed to switch network";
           setState((prev) => ({
             ...prev,
-            error: "Failed to switch network.",
+            error: errorMessage,
           }));
         }
       }
     },
-    [state.provider]
+    [state.provider, state.connectedWallet]
   );
 
   const disconnectWallet = useCallback(async () => {
@@ -529,6 +564,86 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
     return () => clearInterval(interval);
   }, [state.isConnected, state.provider, state.address, updateBalance]);
+
+  // Listen for network changes
+  useEffect(() => {
+    if (!state.provider || !window.ethereum) return;
+
+    const handleChainChanged = async (chainId: string) => {
+      const newChainId = parseInt(chainId, 16);
+      console.log(`🔄 Network changed to: ${newChainId}`);
+
+      // Always recreate provider to avoid NETWORK_ERROR
+      try {
+        // Add a small delay to let the network change settle
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const newProvider = new ethers.providers.Web3Provider(
+          window.ethereum!,
+          "any"
+        );
+        await newProvider.detectNetwork(); // Force network detection
+        const newSigner = newProvider.getSigner();
+
+        setState((prev) => ({
+          ...prev,
+          chainId: newChainId,
+          provider: newProvider,
+          signer: newSigner,
+          error: null, // Clear any previous errors
+        }));
+
+        // Update balance for new network if user is connected
+        if (state.address) {
+          try {
+            await updateBalance(newProvider, state.address);
+          } catch (balanceError) {
+            console.warn(
+              "Could not update balance after network change:",
+              balanceError
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error handling network change:", error);
+        // Set a user-friendly error state
+        setState((prev) => ({
+          ...prev,
+          chainId: newChainId,
+          error:
+            "Network changed. Please refresh the page if you experience issues.",
+        }));
+      }
+    };
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length === 0) {
+        // User disconnected
+        disconnectWallet();
+      } else if (accounts[0] !== state.address) {
+        // User switched accounts
+        console.log(`👤 Account changed to: ${accounts[0]}`);
+        setState((prev) => ({ ...prev, address: accounts[0] }));
+        updateBalance(state.provider!, accounts[0]);
+      }
+    };
+
+    // Add event listeners (with proper typing)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ethereum = window.ethereum as any;
+    if (ethereum?.on) {
+      ethereum.on("chainChanged", handleChainChanged);
+      ethereum.on("accountsChanged", handleAccountsChanged);
+    }
+
+    return () => {
+      // Clean up event listeners
+      if (ethereum?.removeListener) {
+        ethereum.removeListener("chainChanged", handleChainChanged);
+        ethereum.removeListener("accountsChanged", handleAccountsChanged);
+      }
+    };
+  }, [state.provider, state.address, updateBalance, disconnectWallet]);
 
   const contextValue: WalletContextType = {
     ...state,

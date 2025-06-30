@@ -12,7 +12,7 @@ const path = require("path");
 // Configuration
 const CONFIG = {
   rpcUrl: "https://api.avax-test.network/ext/bc/C/rpc",
-  contractAddress: "0xdf07bD5a057aBf76147231886C94FEb985151ebc", // Your deployed contract
+  contractAddress: "0x060F0F142D5BfC721a7C53D00B4bAD77Ad82C776", // Your deployed contract
   chainlinkRouter: "0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0",
   subscriptionId: 15675,
 };

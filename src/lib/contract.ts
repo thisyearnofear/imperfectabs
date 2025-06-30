@@ -15,7 +15,7 @@ declare global {
 // Contract Configuration
 export const CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
-  "0xFBE99DcD3b2d93b1c8FFabC26427383dAAbA05d1";
+  "0x060F0F142D5BfC721a7C53D00B4bAD77Ad82C776"; // Minimal contract for basic functionality
 export const AVALANCHE_FUJI_RPC =
   process.env.NEXT_PUBLIC_AVALANCHE_FUJI_RPC ||
   "https://api.avax-test.network/ext/bc/C/rpc";
@@ -23,7 +23,7 @@ export const ETH_MAINNET_RPC =
   process.env.NEXT_PUBLIC_ETH_MAINNET_RPC || "https://cloudflare-eth.com";
 export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "43113");
 export const ENS_CHAIN_ID = parseInt(
-  process.env.NEXT_PUBLIC_ENS_CHAIN_ID || "1",
+  process.env.NEXT_PUBLIC_ENS_CHAIN_ID || "1"
 );
 export const TELEPORTER_MESSENGER =
   "0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf";
@@ -35,35 +35,38 @@ export const CHAINLINK_FUNCTIONS_ROUTER =
 export const CHAINLINK_DON_ID = "fun-avalanche-fuji-1";
 export const CHAINLINK_SUBSCRIPTION_ID = 0; // You'll need to create a subscription
 
-// Contract ABI (essential functions only)
+// Contract ABI (minimal contract functions)
 export const CONTRACT_ABI = [
   // Read functions
   "function getLeaderboard() external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp)[] memory)",
-  "function getUserAbsScore(address _user) external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp) memory)",
-  "function getUserAbsScoreSafe(address _user) external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp) memory, bool)",
+  "function getUserAbsScoreSafe(address _user) external view returns (uint256 totalReps, uint256 averageAccuracy, uint256 bestStreak, uint256 sessionCount)",
   "function getTimeUntilNextSubmission(address _user) external view returns (uint256)",
-  "function getUserSessions(address _user) external view returns (tuple(uint256 reps, uint256 formAccuracy, uint256 streak, uint256 duration, uint256 timestamp)[] memory)",
+  "function getUserSessions(address _user) external view returns (tuple(uint256 reps, uint256 formAccuracy, uint256 streak, uint256 duration, uint256 timestamp, string region)[] memory)",
   "function getTopPerformers(uint256 _count) external view returns (tuple(address user, uint256 totalReps, uint256 averageFormAccuracy, uint256 bestStreak, uint256 sessionsCompleted, uint256 timestamp)[] memory)",
   "function calculateCompositeScore(uint256 _reps, uint256 _formAccuracy, uint256 _streak) external pure returns (uint256)",
-  "function feeConfig() external view returns (tuple(uint256 submissionFee, uint256 ownerShare, uint256 leaderboardShare))",
-  "function isAvalancheFuji() external view returns (bool)",
-  "function getEcosystemInfo() external pure returns (string memory, string memory, string memory)",
+
+  // Service registry functions (for future Chainlink integration)
+  "function getService(bytes32 serviceId) external view returns (address)",
+  "function isServiceEnabled(bytes32 serviceId) external view returns (bool)",
+
+  // Constants
+  "function MAX_REPS_PER_SESSION() external view returns (uint256)",
+  "function SUBMISSION_COOLDOWN() external view returns (uint256)",
+  "function SUBMISSION_FEE() external view returns (uint256)",
 
   // Write functions
-  "function submitWorkoutSession(uint256 _reps, uint256 _formAccuracy, uint256 _streak, uint256 _duration) external payable",
-  "function claimRewards() external",
+  "function submitWorkoutSession(uint256 _reps, uint256 _formAccuracy, uint256 _streak, uint256 _duration, string memory _region) external payable",
 
-  // Chainlink Functions (to be added in contract upgrade)
-  "function requestFormAnalysis(string memory sessionData) external returns (bytes32)",
-  "function fulfillFormAnalysis(bytes32 requestId, uint256 enhancedFormScore) external",
+  // Owner functions
+  "function withdrawFees() external",
+  "function registerService(bytes32 serviceId, address serviceAddress) external",
+  "function toggleService(bytes32 serviceId, bool enabled) external",
 
   // Events
-  "event AbsScoreAdded(address indexed user, uint256 reps, uint256 formAccuracy, uint256 streak, uint256 timestamp)",
-  "event WorkoutSessionRecorded(address indexed user, uint256 sessionIndex, uint256 reps, uint256 formAccuracy, uint256 duration)",
-  "event EcosystemIntegration(string indexed appName, address indexed user, uint256 score)",
-  "event RewardClaimed(address indexed user, uint256 amount)",
-  "event ChainlinkRequestSent(bytes32 indexed requestId, address indexed user, string sessionData)",
-  "event ChainlinkResponseReceived(bytes32 indexed requestId, uint256 enhancedScore)",
+  "event WorkoutSessionSubmitted(address indexed user, uint256 sessionIndex, uint256 reps, string region)",
+  "event LeaderboardScoreUpdated(address indexed user, uint256 totalReps, uint256 averageAccuracy, uint256 bestStreak)",
+  "event ServiceRegistered(bytes32 indexed serviceId, address indexed serviceAddress)",
+  "event ServiceToggled(bytes32 indexed serviceId, bool enabled)",
 ];
 
 // Types
@@ -95,7 +98,21 @@ export interface ChainlinkRequest {
   status: "pending" | "fulfilled" | "failed";
   sessionData: string;
   enhancedScore?: number;
-  timestamp: number;
+}
+
+// V4 New Interfaces
+export interface DailyChallenge {
+  challengeType: number;
+  target: number;
+  bonusMultiplier: number;
+  expiresAt: number;
+  active: boolean;
+}
+
+export interface WeatherBonuses {
+  seasonal: { [month: number]: number };
+  regional: { [region: string]: number };
+  lastUpdate: number;
 }
 
 // Chainlink Functions JavaScript source code for AI analysis
@@ -160,7 +177,7 @@ export const getENSProvider = () => {
 };
 
 export const getContract = (
-  signerOrProvider: ethers.Signer | ethers.providers.Provider,
+  signerOrProvider: ethers.Signer | ethers.providers.Provider
 ) => {
   return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signerOrProvider);
 };
@@ -218,7 +235,7 @@ export const submitWorkoutSession = async (
   formAccuracy: number,
   streak: number,
   duration: number,
-  poseData?: unknown[],
+  poseData?: unknown[]
 ) => {
   try {
     console.log("🏋️ Starting workout session submission...");
@@ -228,9 +245,12 @@ export const submitWorkoutSession = async (
 
     // Get submission fee
     console.log("💰 Getting submission fee...");
-    const feeConfig = await contract.feeConfig();
-    const submissionFee = feeConfig.submissionFee;
-    console.log("💸 Submission fee:", ethers.utils.formatEther(submissionFee), "AVAX");
+    const submissionFee = await contract.SUBMISSION_FEE();
+    console.log(
+      "💸 Submission fee:",
+      ethers.utils.formatEther(submissionFee),
+      "AVAX"
+    );
 
     // Submit basic workout session
     console.log("📤 Submitting transaction to contract...");
@@ -239,10 +259,11 @@ export const submitWorkoutSession = async (
       formAccuracy,
       streak,
       duration,
+      "temperate", // Default region
       {
         value: submissionFee,
-        gasLimit: 500000 // Higher gas limit for Chainlink Functions
-      },
+        gasLimit: 300000, // Standard gas limit for minimal contract
+      }
     );
 
     console.log("🔗 Transaction hash:", tx.hash);
@@ -256,8 +277,8 @@ export const submitWorkoutSession = async (
     console.log("📋 Transaction events:");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     receipt.events?.forEach((event: any, index: number) => {
-      console.log(`  ${index + 1}. ${event.event || 'Unknown Event'}`);
-      if (event.event === 'AIAnalysisRequested') {
+      console.log(`  ${index + 1}. ${event.event || "Unknown Event"}`);
+      if (event.event === "AIAnalysisRequested") {
         console.log(`     🔗 Chainlink Request ID: ${event.args?.requestId}`);
         console.log(`     👤 User: ${event.args?.user}`);
         console.log(`     📊 Session Index: ${event.args?.sessionIndex}`);
@@ -278,7 +299,7 @@ export const submitWorkoutSession = async (
         poses: poseData,
         angles: extractAngles(poseData),
         timestamps: poseData.map(
-          (_, i) => Date.now() - (poseData.length - i) * 100,
+          (_, i) => Date.now() - (poseData.length - i) * 100
         ),
       });
     }
@@ -296,7 +317,7 @@ export const submitWorkoutSession = async (
 
 export const requestEnhancedAnalysis = async (
   signer: ethers.Signer,
-  sessionData: unknown,
+  sessionData: unknown
 ) => {
   try {
     // This would call a Chainlink Functions request
@@ -320,23 +341,24 @@ export const requestEnhancedAnalysis = async (
 };
 
 export const getUserStats = async (
-  userAddress: string,
+  userAddress: string
 ): Promise<AbsScore | null> => {
   try {
     const provider = getProvider();
     const contract = getContract(provider);
 
-    const [score, exists] = await contract.getUserAbsScoreSafe(userAddress);
+    const [totalReps, averageAccuracy, bestStreak, sessionCount] =
+      await contract.getUserAbsScoreSafe(userAddress);
 
-    if (!exists) return null;
+    if (sessionCount === 0) return null;
 
     return {
-      user: score.user,
-      totalReps: score.totalReps.toNumber(),
-      averageFormAccuracy: score.averageFormAccuracy.toNumber(),
-      bestStreak: score.bestStreak.toNumber(),
-      sessionsCompleted: score.sessionsCompleted.toNumber(),
-      timestamp: score.timestamp.toNumber(),
+      user: userAddress,
+      totalReps: totalReps.toNumber(),
+      averageFormAccuracy: averageAccuracy.toNumber(),
+      bestStreak: bestStreak.toNumber(),
+      sessionsCompleted: sessionCount.toNumber(),
+      timestamp: Date.now(), // V4 doesn't return timestamp, use current time
     };
   } catch (error) {
     console.error("Failed to get user stats:", error);
@@ -368,7 +390,7 @@ export const getLeaderboard = async (limit?: number): Promise<AbsScore[]> => {
         bestStreak: entry.bestStreak.toNumber(),
         sessionsCompleted: entry.sessionsCompleted.toNumber(),
         timestamp: entry.timestamp.toNumber(),
-      }),
+      })
     );
   } catch (error) {
     console.error("Failed to get leaderboard:", error);
@@ -377,7 +399,7 @@ export const getLeaderboard = async (limit?: number): Promise<AbsScore[]> => {
 };
 
 export const getUserSessions = async (
-  userAddress: string,
+  userAddress: string
 ): Promise<WorkoutSession[]> => {
   try {
     const provider = getProvider();
@@ -398,7 +420,7 @@ export const getUserSessions = async (
         streak: session.streak.toNumber(),
         duration: session.duration.toNumber(),
         timestamp: session.timestamp.toNumber(),
-      }),
+      })
     );
   } catch (error) {
     console.error("Failed to get user sessions:", error);
@@ -407,14 +429,15 @@ export const getUserSessions = async (
 };
 
 export const getTimeUntilNextSubmission = async (
-  userAddress: string,
+  userAddress: string
 ): Promise<number> => {
   try {
     const provider = getProvider();
     const contract = getContract(provider);
 
-    const timeRemaining =
-      await contract.getTimeUntilNextSubmission(userAddress);
+    const timeRemaining = await contract.getTimeUntilNextSubmission(
+      userAddress
+    );
     return timeRemaining.toNumber();
   } catch (error) {
     console.error("Failed to get submission cooldown:", error);
@@ -436,7 +459,7 @@ export const claimRewards = async (signer: ethers.Signer) => {
 export const calculateCompositeScore = async (
   reps: number,
   formAccuracy: number,
-  streak: number,
+  streak: number
 ): Promise<number> => {
   try {
     const provider = getProvider();
@@ -445,7 +468,7 @@ export const calculateCompositeScore = async (
     const score = await contract.calculateCompositeScore(
       reps,
       formAccuracy,
-      streak,
+      streak
     );
     return score.toNumber();
   } catch (error) {
@@ -535,7 +558,7 @@ export const subscribeToEvents = (
     transactionHash?: string;
     requestId?: string;
     enhancedScore?: number;
-  }) => void,
+  }) => void
 ) => {
   const provider = getProvider();
   const contract = getContract(provider);
@@ -553,7 +576,7 @@ export const subscribeToEvents = (
         timestamp: timestamp.toNumber(),
         transactionHash: event.transactionHash,
       });
-    },
+    }
   );
 
   // Listen for Chainlink responses (when implemented)
@@ -566,7 +589,7 @@ export const subscribeToEvents = (
         enhancedScore: enhancedScore.toNumber(),
         transactionHash: event.transactionHash,
       });
-    },
+    }
   );
 
   return () => {

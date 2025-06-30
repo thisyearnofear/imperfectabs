@@ -37,35 +37,56 @@ export default function RewardSystem({
 
     try {
       setLoading(true);
+      console.log("🎁 Loading reward data for user:", userAddress);
 
       // Get user reward info using the contract instance
-      const userReward = await contractInstance.getUserRewardInfo(userAddress);
-      if (userReward) {
-        setRewardInfo({
-          totalEarned: userReward.totalEarned,
-          lastClaimed: new Date(
-            userReward.lastClaimed * 1000
-          ).toLocaleDateString(),
-          currentPeriodEarned: userReward.currentPeriodEarned,
-          rank: userReward.rank,
-          pendingAmount: userReward.pendingAmount,
-        });
+      try {
+        const userReward = await contractInstance.getUserRewardInfo(
+          userAddress
+        );
+        console.log("👤 User reward info:", userReward);
+
+        if (userReward) {
+          setRewardInfo({
+            totalEarned: userReward.totalEarned,
+            lastClaimed: new Date(
+              userReward.lastClaimed * 1000
+            ).toLocaleDateString(),
+            currentPeriodEarned: userReward.currentPeriodEarned,
+            rank: userReward.rank,
+            pendingAmount: userReward.pendingAmount,
+          });
+        }
+      } catch {
+        console.log(
+          "ℹ️ User reward info not available (user may not have submitted workouts yet)"
+        );
+        // This is normal for new users - don't show error
       }
 
       // Get reward config using the contract instance
-      const config = await contractInstance.getRewardConfig();
-      if (config) {
-        setRewardConfig({
-          distributionPeriod: config.distributionPeriod,
-          topPerformersCount: config.topPerformersCount,
-          lastDistribution: config.lastDistribution,
-          totalRewardPool: config.totalRewardPool,
-          autoDistribution: config.autoDistribution,
-          timeUntilNextDistribution: config.timeUntilNextDistribution,
-        });
+      try {
+        const config = await contractInstance.getRewardConfig();
+        console.log("⚙️ Reward config:", config);
+
+        if (config) {
+          setRewardConfig({
+            distributionPeriod: config.distributionPeriod,
+            topPerformersCount: config.topPerformersCount,
+            lastDistribution: config.lastDistribution,
+            totalRewardPool: config.totalRewardPool,
+            autoDistribution: config.autoDistribution,
+            timeUntilNextDistribution: config.timeUntilNextDistribution,
+          });
+        }
+      } catch {
+        console.log(
+          "ℹ️ Reward config not available - rewards may not be enabled yet"
+        );
+        // Don't show error for missing config
       }
     } catch (error) {
-      console.error("Error loading reward data:", error);
+      console.error("❌ Error loading reward data:", error);
     } finally {
       setLoading(false);
     }

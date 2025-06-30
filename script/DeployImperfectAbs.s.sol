@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
-import "../contracts/ImperfectAbsLeaderboard.sol";
+import "../contracts/ImperfectAbsHub.sol";
 
 contract DeployImperfectAbs is Script {
     // Avalanche Fuji configuration
@@ -128,16 +128,16 @@ contract DeployImperfectAbs is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy the ImperfectAbsLeaderboard contract
-        ImperfectAbsLeaderboard leaderboard = new ImperfectAbsLeaderboard(
+        // Deploy the ImperfectAbsHub contract
+        ImperfectAbsHub hub = new ImperfectAbsHub(
             ROUTER,
+            ROUTER, // Functions router (same as CCIP router for Avalanche)
             SUBSCRIPTION_ID,
-            GAS_LIMIT,
             DON_ID,
             SOURCE
         );
 
-        console.log("ImperfectAbsLeaderboard deployed to:", address(leaderboard));
+        console.log("ImperfectAbsHub deployed to:", address(hub));
         console.log("Deployer address:", vm.addr(deployerPrivateKey));
         console.log("Contract deployed with:");
         console.log("  Router:", ROUTER);
@@ -151,7 +151,7 @@ contract DeployImperfectAbs is Script {
         console.log("1. Add contract as consumer to subscription 15675");
         console.log("2. Fund subscription with LINK tokens");
         console.log("3. Test with submitWorkoutSession()");
-        console.log("4. Contract address to add as consumer:", address(leaderboard));
+        console.log("4. Contract address to add as consumer:", address(hub));
 
         vm.stopBroadcast();
     }
@@ -180,22 +180,22 @@ contract DeployImperfectAbs is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        ImperfectAbsLeaderboard leaderboard = new ImperfectAbsLeaderboard(
+        ImperfectAbsHub hub = new ImperfectAbsHub(
             router,
+            router, // Functions router (same as CCIP router for Avalanche)
             subscriptionId,
-            gasLimit,
             donId,
             source
         );
 
-        console.log("ImperfectAbsLeaderboard deployed to:", address(leaderboard));
+        console.log("ImperfectAbsHub deployed to:", address(hub));
         console.log("Deployer address:", vm.addr(deployerPrivateKey));
 
         vm.stopBroadcast();
     }
 
     // Utility function to verify deployment parameters
-    function verifyDeploymentParams() external view {
+    function verifyDeploymentParams() external pure {
         console.log("=== DEPLOYMENT PARAMETERS ===");
         console.log("Router:", ROUTER);
         console.log("Subscription ID:", SUBSCRIPTION_ID);

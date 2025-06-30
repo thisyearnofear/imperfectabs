@@ -9,6 +9,7 @@ import { ContractProvider } from "../contexts/ContractContext";
 import WalletConnectButton, {
   MobileWalletIndicator,
 } from "../components/WalletConnectButton";
+import NetworkSwitcher from "../components/NetworkSwitcher";
 
 type ActiveTab = "workout" | "leaderboard";
 
@@ -68,16 +69,19 @@ function HomeContent() {
               </div>
             </div>
 
-            {/* Wallet connection - responsive */}
-            {isMobile ? (
-              <MobileWalletIndicator />
-            ) : (
-              <WalletConnectButton
-                variant="primary"
-                showBalance={false}
-                className="text-on-colored-bg"
-              />
-            )}
+            {/* Wallet connection and network switcher - responsive */}
+            <div className="flex items-center space-x-2">
+              {isMobile ? (
+                <MobileWalletIndicator />
+              ) : (
+                <WalletConnectButton
+                  variant="primary"
+                  showBalance={false}
+                  className="text-on-colored-bg"
+                />
+              )}
+              <NetworkSwitcher variant="header" />
+            </div>
           </div>
         </div>
       </header>

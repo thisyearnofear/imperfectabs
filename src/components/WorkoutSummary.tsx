@@ -12,11 +12,13 @@ interface SessionStats {
 interface WorkoutSummaryProps {
   sessionStats: SessionStats;
   enhancedFormScore: number | null;
+  aiAdvice?: string | null;
 }
 
 export default function WorkoutSummary({
   sessionStats,
   enhancedFormScore,
+  aiAdvice,
 }: WorkoutSummaryProps) {
   return (
     <div className="abs-card-brutal !bg-white !text-black p-6 text-center border-8 border-black">
@@ -68,6 +70,18 @@ export default function WorkoutSummary({
           <div className="text-xs !text-white opacity-90">
             Powered by Chainlink Functions
           </div>
+
+          {/* AI Advice Section */}
+          {aiAdvice && (
+            <div className="mt-4 bg-white bg-opacity-20 rounded-lg p-4 border-2 border-white border-opacity-30">
+              <div className="text-xs font-bold mb-2 flex items-center gap-1 !text-white">
+                💡 AI COACH FEEDBACK
+              </div>
+              <div className="text-sm italic !text-white leading-relaxed">
+                "{aiAdvice}"
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -5,13 +5,15 @@ import Image from "next/image";
 import type { Results } from "@mediapipe/pose";
 import { AbsExerciseDetector, ExerciseState } from "../lib/pose-detection";
 import { useWallet } from "../contexts/WalletContext";
-import { useContract } from "../contexts/ContractContext";
+// import { useContract } from "../contexts/ContractContext"; // Temporarily disabled
 import WalletConnectButton from "./WalletConnectButton";
 import WorkoutTips from "./WorkoutTips";
 import WorkoutSummary from "./WorkoutSummary";
 import WorkoutSubmission from "./WorkoutSubmission";
 import ChainlinkEnhancement from "./ChainlinkEnhancement";
-import RewardSystem from "./RewardSystem";
+import DailyChallenges from "./DailyChallenges";
+import WeatherBonuses from "./WeatherBonuses";
+// import RewardSystem from "./RewardSystem"; // Temporarily disabled
 
 interface SessionStats {
   totalReps: number;
@@ -194,6 +196,7 @@ export default function ImprovedWorkoutTracker() {
   const [enhancedFormScore, setEnhancedFormScore] = useState<number | null>(
     null
   );
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -201,7 +204,7 @@ export default function ImprovedWorkoutTracker() {
   // Wallet context
   const { isConnected: isWalletConnected, address: walletAddress } =
     useWallet();
-  const { contractInstance } = useContract();
+  // const { contractInstance } = useContract(); // Temporarily disabled
 
   // Auto-detect mobile device
   const [isMobile, setIsMobile] = useState(false);
@@ -228,10 +231,15 @@ export default function ImprovedWorkoutTracker() {
       timerRef.current = null;
     }
 
-    // Exit fullscreen if active
-    if (isFullScreen && document.exitFullscreen) {
-      document.exitFullscreen();
-      setIsFullScreen(false);
+    // Exit fullscreen if active and document is active
+    if (isFullScreen && document.exitFullscreen && document.fullscreenElement) {
+      try {
+        document.exitFullscreen();
+        setIsFullScreen(false);
+      } catch (error) {
+        console.log("Could not exit fullscreen:", error);
+        setIsFullScreen(false);
+      }
     }
 
     // Calculate final stats
@@ -387,15 +395,8 @@ export default function ImprovedWorkoutTracker() {
         showSubmission: false,
       }));
 
-      // Request fullscreen on mobile for better experience
-      if (isMobile && videoRef.current.requestFullscreen) {
-        try {
-          await videoRef.current.requestFullscreen();
-          setIsFullScreen(true);
-        } catch {
-          console.log("Fullscreen not supported or denied");
-        }
-      }
+      // Note: Removed automatic fullscreen as it interferes with pose detection
+      // Users can manually enter fullscreen if desired
     } catch (err) {
       setError(
         "Failed to start camera. Please check permissions and try again."
@@ -403,17 +404,25 @@ export default function ImprovedWorkoutTracker() {
       console.error("Workout initialization error:", err);
       setWorkoutState((prev) => ({ ...prev, isInitializing: false }));
     }
-  }, [isMobile, stopWorkout]);
+  }, [stopWorkout]);
 
   // Handle successful submission
-  const handleSubmissionComplete = useCallback((success: boolean) => {
-    // Keep submission component visible to show transaction details
-    // Don't hide it on success - user should see their transaction hash
-    console.log(`Submission ${success ? "successful" : "failed"}`);
-  }, []);
+  const handleSubmissionComplete = useCallback(
+    (success: boolean, txHash?: string) => {
+      // Keep submission component visible to show transaction details
+      // Don't hide it on success - user should see their transaction hash
+      if (success && txHash) {
+        console.log(`✅ Submission successful! TX: ${txHash}`);
+      } else {
+        console.log(`❌ Submission failed`);
+      }
+    },
+    []
+  );
 
-  const handleEnhancedAnalysis = (score: number) => {
+  const handleEnhancedAnalysis = (score: number, advice?: string) => {
     setEnhancedFormScore(score);
+    setAiAdvice(advice || null);
   };
 
   // Get workout status color
@@ -668,6 +677,7 @@ export default function ImprovedWorkoutTracker() {
                   <WorkoutSummary
                     sessionStats={sessionStats}
                     enhancedFormScore={enhancedFormScore}
+                    aiAdvice={aiAdvice}
                   />
                   {isWalletConnected && poseDataRef.current.length > 0 && (
                     <ChainlinkEnhancement
@@ -682,13 +692,28 @@ export default function ImprovedWorkoutTracker() {
                       onEnhancedAnalysis={handleEnhancedAnalysis}
                     />
                   )}
+                  {/* Temporarily disabled until reward functions are deployed
                   {isWalletConnected && (
                     <RewardSystem
                       contractInstance={contractInstance}
                       userAddress={walletAddress || null}
                     />
                   )}
+                  */}
                 </>
+              )}
+
+              {/* Daily Challenges - Always visible when connected */}
+              {isWalletConnected && (
+                <DailyChallenges
+                  isConnected={isWalletConnected}
+                  walletAddress={walletAddress}
+                />
+              )}
+
+              {/* Weather Bonuses - Mobile only, desktop shows below */}
+              {isWalletConnected && isMobile && (
+                <WeatherBonuses isConnected={isWalletConnected} />
               )}
 
               {/* Mobile Tips */}
@@ -707,6 +732,13 @@ export default function ImprovedWorkoutTracker() {
               )}
             </div>
           </div>
+
+          {/* Weather Bonuses - Desktop only, below main content */}
+          {isWalletConnected && !isMobile && (
+            <div className="mt-6">
+              <WeatherBonuses isConnected={isWalletConnected} />
+            </div>
+          )}
         </div>
       </div>
     </div>

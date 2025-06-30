@@ -66,7 +66,18 @@ export default function WorkoutSubmission({
     try {
       if (!window.ethereum) return;
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      // Wait a bit for network to stabilize after switching
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Create fresh provider instance to avoid network change errors
+      const provider = new ethers.providers.Web3Provider(
+        window.ethereum,
+        "any"
+      );
+
+      // Force provider to detect current network
+      await provider.detectNetwork();
+
       await imperfectAbsContract.initialize(provider);
 
       // Get contract config and user status
@@ -209,17 +220,18 @@ export default function WorkoutSubmission({
 
   const getSubmissionButtonClass = (): string => {
     const baseClass =
-      "w-full abs-btn-primary text-center transition-all duration-200";
+      "w-full abs-btn-primary text-center transition-all duration-200 font-black";
     const isCorrectNetwork = chainId === CONTRACT_CONFIG.chainId;
 
-    if (!isConnected) return `${baseClass} bg-purple-600 text-white`;
+    if (!isConnected)
+      return `${baseClass} bg-purple-600 text-white border-purple-800`;
     if (!isCorrectNetwork)
-      return `${baseClass} bg-gray-400 text-gray-600 cursor-not-allowed`;
+      return `${baseClass} bg-gray-500 text-white cursor-not-allowed border-gray-700`;
     if (state.isSubmitting)
-      return `${baseClass} bg-gray-400 text-gray-600 cursor-not-allowed`;
+      return `${baseClass} bg-blue-500 text-white cursor-not-allowed border-blue-700`;
     if (state.cooldownRemaining > 0)
-      return `${baseClass} bg-orange-500 text-white cursor-not-allowed`;
-    return `${baseClass} bg-green-500 text-black hover:bg-green-400`;
+      return `${baseClass} bg-orange-600 text-white cursor-not-allowed border-orange-800`;
+    return `${baseClass} bg-green-600 text-white hover:bg-green-500 border-green-800`;
   };
 
   // Helper function to get transaction URL
@@ -231,10 +243,10 @@ export default function WorkoutSubmission({
     <div className="abs-card-brutal p-6 space-y-6">
       {/* Header */}
       <div className="text-center border-b-4 border-black pb-4">
-        <h2 className="text-2xl font-black uppercase text-black mb-2">
+        <h2 className="text-2xl font-black uppercase text-gray-900 mb-2">
           🏆 Submit to Leaderboard
         </h2>
-        <p className="text-gray-600 font-bold">
+        <p className="text-gray-700 font-bold">
           Record your workout on Avalanche blockchain
         </p>
       </div>
@@ -243,8 +255,8 @@ export default function WorkoutSubmission({
       {isConnected && <NetworkCheck />}
 
       {/* Network Info */}
-      <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-300 text-center">
-        <div className="text-sm font-bold text-gray-600 mb-2">
+      <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 text-center">
+        <div className="text-sm font-bold text-blue-800 mb-2">
           SUBMITTING TO AVALANCHE FUJI
         </div>
       </div>
@@ -268,10 +280,10 @@ export default function WorkoutSubmission({
       {state.userScore && (
         <div className="border-2 border-gray-300 p-4 rounded">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-black text-black uppercase">Your Stats</h3>
+            <h3 className="font-black text-gray-900 uppercase">Your Stats</h3>
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="text-sm bg-gray-200 px-2 py-1 border border-gray-400 font-bold"
+              className="text-sm bg-gray-800 text-white px-3 py-1 rounded border border-gray-600 font-bold hover:bg-gray-700"
             >
               {showDetails ? "HIDE" : "SHOW"}
             </button>
@@ -289,22 +301,30 @@ export default function WorkoutSubmission({
           )}
 
           {showDetails && (
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="font-bold">Total Reps:</span>{" "}
-                {state.userScore.totalReps}
+            <div className="grid grid-cols-2 gap-3 text-sm text-gray-800">
+              <div className="bg-gray-50 p-2 rounded">
+                <span className="font-bold text-gray-900">Total Reps:</span>{" "}
+                <span className="text-blue-600 font-semibold">
+                  {state.userScore.totalReps}
+                </span>
               </div>
-              <div>
-                <span className="font-bold">Avg Form:</span>{" "}
-                {state.userScore.averageFormAccuracy}%
+              <div className="bg-gray-50 p-2 rounded">
+                <span className="font-bold text-gray-900">Avg Form:</span>{" "}
+                <span className="text-green-600 font-semibold">
+                  {state.userScore.averageFormAccuracy}%
+                </span>
               </div>
-              <div>
-                <span className="font-bold">Best Streak:</span>{" "}
-                {state.userScore.bestStreak}
+              <div className="bg-gray-50 p-2 rounded">
+                <span className="font-bold text-gray-900">Best Streak:</span>{" "}
+                <span className="text-purple-600 font-semibold">
+                  {state.userScore.bestStreak}
+                </span>
               </div>
-              <div>
-                <span className="font-bold">Sessions:</span>{" "}
-                {state.userScore.sessionsCompleted}
+              <div className="bg-gray-50 p-2 rounded">
+                <span className="font-bold text-gray-900">Sessions:</span>{" "}
+                <span className="text-orange-600 font-semibold">
+                  {state.userScore.sessionsCompleted}
+                </span>
               </div>
             </div>
           )}
@@ -326,23 +346,28 @@ export default function WorkoutSubmission({
       </button>
 
       {/* Submission Info */}
-      <div className="text-xs text-gray-600 space-y-2">
+      <div className="text-xs text-gray-700 space-y-2 bg-gray-50 p-3 rounded border">
         <div className="flex justify-between">
-          <span>Network:</span>
-          <span className="font-bold">Avalanche Fuji</span>
+          <span className="text-gray-600">Network:</span>
+          <span className="font-bold text-gray-900">Avalanche Fuji</span>
         </div>
         <div className="flex justify-between">
-          <span>Contract:</span>
-          <span className="font-mono">0xFBE9...A05d1</span>
+          <span className="text-gray-600">Contract:</span>
+          <span className="font-mono text-gray-900">
+            {CONTRACT_CONFIG.address.slice(0, 6)}...
+            {CONTRACT_CONFIG.address.slice(-6)}
+          </span>
         </div>
         <div className="flex justify-between">
-          <span>Cooldown:</span>
-          <span className="font-bold">60 seconds</span>
+          <span className="text-gray-600">Cooldown:</span>
+          <span className="font-bold text-gray-900">60 seconds</span>
         </div>
         {state.submissionFee && (
           <div className="flex justify-between">
-            <span>Fee:</span>
-            <span className="font-bold">{state.submissionFee} AVAX</span>
+            <span className="text-gray-600">Fee:</span>
+            <span className="font-bold text-gray-900">
+              {state.submissionFee} AVAX
+            </span>
           </div>
         )}
       </div>
@@ -363,14 +388,20 @@ export default function WorkoutSubmission({
           >
             {lastSubmissionResult.success ? "✅ SUCCESS" : "❌ ERROR"}
           </div>
-          <div className="text-sm mt-1">{lastSubmissionResult.message}</div>
+          <div
+            className={`text-sm mt-1 font-semibold ${
+              lastSubmissionResult.success ? "text-green-800" : "text-red-800"
+            }`}
+          >
+            {lastSubmissionResult.message}
+          </div>
           {lastSubmissionResult.txHash && (
             <div className="mt-2">
               <a
                 href={getTransactionUrl(lastSubmissionResult.txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 underline text-sm font-bold"
+                className="text-blue-800 underline text-sm font-black bg-blue-100 px-2 py-1 rounded"
               >
                 📱 View Transaction
               </a>
@@ -381,8 +412,8 @@ export default function WorkoutSubmission({
 
       {/* Transaction in Progress */}
       {txHash && state.isSubmitting && (
-        <div className="p-4 border-2 border-blue-500 bg-blue-50">
-          <div className="font-bold text-blue-700 mb-2">
+        <div className="p-4 border-2 border-blue-600 bg-blue-50">
+          <div className="font-bold text-blue-800 mb-2">
             ⏳ Transaction Submitted
           </div>
           <div className="text-sm">
@@ -402,9 +433,9 @@ export default function WorkoutSubmission({
       )}
 
       {/* Mobile Optimization Note */}
-      <div className="text-xs text-gray-500 text-center mt-4 p-3 bg-gray-100 border">
-        <div className="font-bold mb-1">📱 Mobile Optimized</div>
-        <div>
+      <div className="text-xs text-gray-800 text-center mt-4 p-3 bg-gray-100 border border-gray-400 rounded">
+        <div className="font-black mb-1 text-gray-900">📱 Mobile Optimized</div>
+        <div className="font-semibold">
           Tap and hold buttons for better mobile interaction. Transactions
           typically confirm in 1-2 seconds on Avalanche.
         </div>

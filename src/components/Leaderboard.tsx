@@ -110,7 +110,8 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
 
   useEffect(() => {
     loadLeaderboardData();
-  }, [loadLeaderboardData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]); // Only depend on isConnected, not the function
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -121,7 +122,8 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [loadLeaderboardData, isLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]); // Remove loadLeaderboardData dependency
 
   // Composite score calculation function (for future use)
   // const calculateScore = (entry: LeaderboardEntry): number => {

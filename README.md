@@ -1,99 +1,302 @@
-# Imperfect Abs - Decentralized AI Fitness Platform 💪⛓️🤖
+# Imperfect Abs - AI-Powered Fitness Platform with Weather-Enhanced Scoring 💪🌤️🤖
 
-A **hybrid on-chain/off-chain AI fitness platform** that combines real-time pose detection with blockchain-verified scoring and Chainlink-powered AI enhancement. Part of the **Imperfect Fitness Ecosystem**.
-
-## 🧠 Revolutionary AI Architecture
-
-**Frontend AI** → **Chainlink Functions** → **Smart Contract** → **Enhanced Scoring**
-
-1. **MediaPipe Pose Detection**: Real-time form analysis and rep counting in your browser
-2. **Chainlink Functions**: Secure off-chain AI computation with OpenAI integration
-3. **Avalanche Blockchain**: Transparent leaderboard and automated rewards
-4. **Decentralized Enhancement**: AI analysis runs on Chainlink's oracle network, not centralized servers
-
-## 🎉 Production Ready - Chainlink Functions Integration Working ✅
-
-- **Contract Address**: `0xdf07bD5a057aBf76147231886C94FEb985151ebc`
-- **Network**: Avalanche Fuji C-Chain (ChainID: 43113)
-- **Status**: ✅ All Chainlink Functions issues resolved and working perfectly
-- **Snowtrace**: [View Contract](https://testnet.snowtrace.io/address/0xdf07bD5a057aBf76147231886C94FEb985151ebc)
+A **cutting-edge fitness platform** that combines real-time AI pose detection with blockchain scoring, weather-enhanced bonuses, and advanced AI coaching. Built with **MediaPipe**, **Avalanche blockchain**, **Chainlink Automation**, and **WeatherXM integration**.
 
 ## 🌟 Core Features
 
-### 🎯 **Dual-Layer AI Analysis**
+### 🤖 **Advanced AI Analysis**
+- **Real-time Pose Detection**: MediaPipe-powered form analysis with live feedback
+- **AI Coaching**: Intelligent rep counting and form corrections
+- **Performance Analytics**: Detailed workout analysis and improvement suggestions
+- **Exercise Recognition**: Automatic detection of ab exercises (crunches, sit-ups, planks)
 
-- **Layer 1 - Frontend**: MediaPipe pose detection for instant feedback
-- **Layer 2 - Chainlink**: Advanced AI analysis via secure oracle network
-- **OpenAI Integration**: GPT-4 powered form analysis and coaching (⚠️ requires encrypted secrets setup)
+### 🌤️ **Dynamic Weather Bonuses** ⭐ *NEW*
+- **Real Weather Integration**: Live weather data from WeatherXM Pro API and WeatherAPI.com
+- **Seasonal Bonuses**: 2-10% bonus based on current month (winter = higher rewards)
+- **Location-Based Bonuses**: 3-12% bonus based on current weather conditions
+- **Extreme Weather Rewards**: Up to 25% bonus for challenging conditions (storms, extreme temperatures)
+- **Smart Caching**: 30-minute cache system to minimize API costs
 
-### ⛓️ **Blockchain Infrastructure**
+### ⛓️ **Blockchain-Powered Scoring**
+- **Transparent Leaderboard**: All scores verified on Avalanche blockchain
+- **Smart Contracts**: Automated scoring and reward distribution
+- **Chainlink Automation**: Weather bonuses updated every 6 hours
+- **Fair Competition**: Tamper-proof scoring system
 
-- **Smart Contract**: Transparent scoring and leaderboard on Avalanche
-- **Chainlink Functions**: Decentralized AI computation with encrypted API key management
-- **Automated Rewards**: 60% of fees distributed to top performers
-
-### 🔒 **Security & Decentralization**
-
-- **No Single Point of Failure**: AI runs on distributed Chainlink network
-- **Encrypted Secrets**: API keys secured within Chainlink DON
-- **Verifiable Results**: All AI enhancements cryptographically verified
-
-## 📚 Documentation
-
-- **[Project Overview and Hackathon Guide](./docs/Project_Overview_and_Hackathon_Guide.md)** - Complete feature breakdown, architecture, and demo guide
-- **[Chainlink Integration Guide](./docs/Chainlink_Integration_Guide.md)** - Setup, configuration, and troubleshooting for Chainlink Functions integration
-- **[Deployment Guide](./docs/Deployment_Guide.md)** - Instructions for deploying the smart contract on Avalanche
-- **[Security Guide](./docs/Security_Guide.md)** - Security practices, audit findings, and best practices
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Webcam access
-- MetaMask or compatible Web3 wallet
-
-### Installation
-
-1.  **Get test AVAX**: Visit the [Avalanche Faucet](https://faucet.avax.network/).
-2.  **Clone and install:**
-    ```bash
-    git clone <repository-url>
-    cd imperfect-abs
-    npm install
-    ```
-3.  **Run the development server:**
-    ```bash
-    npm run dev
-    ```
-4.  **Setup environment variables**:
-    ```bash
-    cp .env.example .env.local
-    # Edit .env.local with your values
-    ```
-5.  **Setup encrypted secrets** (for OpenAI integration): `npm run setup:secrets`
-6.  **Connect wallet** and switch to Avalanche Fuji testnet
-7.  **Start working out** - AI analysis happens automatically!
-
-## 🔧 How It Works
-
-1. **Workout**: MediaPipe detects your abs exercises in real-time
-2. **Submit**: Pay 0.01 AVAX to submit your session to the blockchain
-3. **AI Enhancement**: Chainlink Functions triggers advanced AI analysis
-4. **Results**: Get enhanced scoring and personalized feedback
-5. **Rewards**: Top performers automatically receive AVAX rewards
+### 🎯 **Gamified Experience**
+- **Real-time Feedback**: Instant form corrections during workouts
+- **Progressive Difficulty**: Adaptive exercise recommendations
+- **Achievement System**: Unlock rewards based on performance
+- **Global Leaderboard**: Compete with users worldwide
 
 ## 🏗️ Technical Architecture
 
 ```
-Browser (MediaPipe) → Smart Contract (Avalanche) → Chainlink Functions → OpenAI API
-     ↓                        ↓                           ↓              ↓
-Pose Detection → Basic Scoring → AI Enhancement Request → Advanced Analysis
-     ↓                        ↓                           ↓              ↓
-Rep Counting → Leaderboard Update ← Enhanced Score ← GPT-4 Feedback
+Frontend (React + MediaPipe) → Smart Contract (Avalanche) → Chainlink Automation
+         ↓                            ↓                           ↓
+    Pose Detection               Blockchain Scoring          Weather Data Sync
+         ↓                            ↓                           ↓
+    Rep Counting                Enhanced Scoring            Dynamic Bonuses
+         ↓                            ↓                           ↓
+    Form Analysis               Leaderboard Update          Reward Distribution
 ```
 
-## 📜 License
+### 🌐 **Weather Integration**
+```
+WeatherXM Pro API (Premium Stations) → WeatherAPI.com (Global) → Simulated Data
+         ↓                                    ↓                        ↓
+   Europe Coverage                    Worldwide Coverage         Emergency Fallback
+         ↓                                    ↓                        ↓
+   High Accuracy                     Reliable Data               Seasonal Patterns
+```
+
+## 🚀 Production Ready Features
+
+### ✅ **Live on Avalanche Fuji**
+- **Contract**: `0x060F0F142D5BfC721a7C53D00B4bAD77Ad82C776`
+- **Network**: Avalanche Fuji C-Chain (ChainID: 43113)
+- **Explorer**: [View on Snowtrace](https://testnet.snowtrace.io/address/0x060F0F142D5BfC721a7C53D00B4bAD77Ad82C776)
+
+### 🔧 **Advanced Integrations**
+- **Chainlink Automation**: Automated weather updates every 6 hours
+- **WeatherXM Pro**: Premium weather station data (Europe focus)
+- **WeatherAPI.com**: Global weather coverage with 99.9% uptime
+- **Smart Caching**: Optimized API usage with 30-minute cache
+
+## 🎮 How to Use
+
+### 🏃‍♂️ **Start Working Out**
+1. **Connect Wallet**: MetaMask + Avalanche Fuji testnet
+2. **Allow Camera**: Enable webcam for pose detection
+3. **Choose Exercise**: Select abs workout type
+4. **Get Positioned**: Follow on-screen pose guide
+5. **Start Exercising**: AI tracks your form and counts reps
+6. **Submit Score**: Pay small fee to record on blockchain
+
+### 🌤️ **Weather Bonuses**
+- **Automatic**: Seasonal bonuses apply automatically
+- **Real Weather**: Toggle for live weather bonuses
+- **API Status**: See which weather services are active
+- **Cache Info**: Check when weather data was last updated
+
+### 🏆 **Earning Rewards**
+- **Base Score**: Calculated from reps, form, and duration
+- **Weather Bonus**: 2-25% additional based on conditions
+- **Leaderboard**: Top performers earn automatic AVAX rewards
+- **60% Revenue Share**: Platform fees distributed to winners
+
+## 🛠️ Quick Start
+
+### Prerequisites
+- Node.js 18+
+- MetaMask wallet
+- Webcam access
+- Test AVAX from [Avalanche Faucet](https://faucet.avax.network/)
+
+### Installation
+```bash
+git clone <repository-url>
+cd imperfect-abs
+npm install
+npm run dev
+```
+
+### Environment Setup
+```bash
+# Create .env.local file with:
+
+# Weather APIs (at least one required for weather bonuses)
+NEXT_PUBLIC_WEATHERXM_API_KEY=your_weatherxm_pro_key
+NEXT_PUBLIC_WEATHERAPI_KEY=your_weatherapi_key
+
+# Blockchain (optional - defaults to public RPC)
+NEXT_PUBLIC_AVALANCHE_RPC_URL=your_rpc_url
+```
+
+### Weather API Setup
+1. **WeatherAPI.com** (Recommended):
+   - Sign up at [weatherapi.com](https://www.weatherapi.com/)
+   - Get free API key (1M calls/month)
+   - Add to `NEXT_PUBLIC_WEATHERAPI_KEY`
+
+2. **WeatherXM Pro** (Optional - Premium):
+   - Sign up at [pro.weatherxm.com](https://pro.weatherxm.com)
+   - Best for European users
+   - Add to `NEXT_PUBLIC_WEATHERXM_API_KEY`
+
+## 🌍 Weather Coverage
+
+| Region | WeatherXM Coverage | WeatherAPI Coverage | Recommended Setup |
+|--------|-------------------|-------------------|------------------|
+| **Europe** | 🟢 Excellent | 🟢 Excellent | Both APIs for best experience |
+| **North America** | 🟡 Limited | 🟢 Excellent | WeatherAPI.com sufficient |
+| **Asia/Africa/Oceania** | 🔴 None | 🟢 Excellent | WeatherAPI.com required |
+
+## 📊 Weather Bonus System
+
+### 🗓️ **Seasonal Bonuses** (Always Active)
+- **Winter** (Dec-Feb): +10% - Reward for cold weather workouts
+- **Summer** (Jun-Aug): +8% - Hot weather challenge bonus  
+- **Spring/Fall** (Mar-May, Sep-Nov): +2-5% - Moderate conditions
+- **Current Month Highlighted**: Extra motivation display
+
+### 🌤️ **Real Weather Bonuses** (API Required)
+- **Temperature**: +1-12% based on extremes (-10°C to +40°C)
+- **Humidity**: +1-8% for challenging conditions (>80% or <30%)
+- **UV Index**: +1-7% for high UV exposure (8+ index)
+- **Precipitation**: +3-10% for rain, snow, storms
+- **Severe Weather**: +10-12% for hurricanes, tornadoes, blizzards
+
+## 🔍 Weather Data Sources
+
+### 🛰️ **WeatherXM Pro** (Premium)
+- **Type**: Decentralized weather station network
+- **Coverage**: Europe (Greece, Germany, Netherlands focus)
+- **Quality**: High - Direct from weather stations
+- **Cost**: Paid service with various tiers
+- **Best for**: European users wanting premium accuracy
+
+### 🌐 **WeatherAPI.com** (Global)
+- **Type**: Professional weather service
+- **Coverage**: 200+ countries worldwide
+- **Quality**: High - Reliable global data
+- **Cost**: Free tier (1M calls/month)
+- **Best for**: Global coverage and reliability
+
+### 📍 **Simulated Fallback**
+- **Type**: Seasonal weather patterns
+- **Coverage**: Worldwide
+- **Quality**: Basic - Pattern-based estimates
+- **Cost**: Free
+- **Used when**: No API keys configured
+
+## 🧪 Testing Your Setup
+
+Run the built-in weather API test:
+```bash
+node test-weather-api.js
+```
+
+Or use the in-app testing:
+1. Go to Weather Bonuses section
+2. Click "🧪 Test APIs" button
+3. Check API connection status
+4. Toggle "🌐 Real Weather" to see live data
+
+## 🏆 Leaderboard & Rewards
+
+### 📈 **Scoring System**
+- **Base Score**: Reps × Form Quality × Duration
+- **Weather Multiplier**: 1.02x to 1.25x based on conditions
+- **Final Score**: Base × Weather Multiplier
+
+### 💰 **Reward Distribution**
+- **Entry Fee**: 0.01 AVAX per submission
+- **Platform Fee**: 40% for development
+- **Rewards Pool**: 60% distributed to top performers
+- **Payout**: Automatic via smart contract
+
+### 🥇 **Leaderboard Tiers**
+- **🥇 Gold (Top 10%)**: Highest reward share
+- **🥈 Silver (Top 25%)**: Medium reward share  
+- **🥉 Bronze (Top 50%)**: Small reward share
+- **🏅 Participation**: Points for future seasons
+
+## 🔒 Security & Decentralization
+
+### ⛓️ **Blockchain Security**
+- **Immutable Scores**: All results stored on Avalanche
+- **Transparent Logic**: Open-source smart contracts
+- **Automated Payouts**: No human intervention required
+- **Chainlink Oracles**: Reliable weather data feeds
+
+### 🔐 **Privacy Protection**
+- **Local Processing**: Pose detection runs in your browser
+- **No Video Storage**: Camera data never leaves your device
+- **Minimal Data**: Only scores and timestamps stored
+- **User Control**: Full control over data sharing
+
+## 📱 Device Compatibility
+
+### 💻 **Desktop**
+- **Chrome/Edge**: ✅ Excellent performance
+- **Firefox**: ✅ Good performance  
+- **Safari**: ✅ Good performance
+
+### 📱 **Mobile**
+- **Android Chrome**: ✅ Good performance
+- **iOS Safari**: ⚠️ Limited (WebGL constraints)
+- **Recommended**: Desktop for best experience
+
+### 📷 **Camera Requirements**
+- **Resolution**: 640x480 minimum
+- **Frame Rate**: 15+ FPS recommended
+- **Lighting**: Good lighting for accurate detection
+- **Position**: Full body visible in frame
+
+## 🚧 Development Roadmap
+
+### 🎯 **Phase 2 - Enhanced AI** (Q1 2024)
+- [ ] OpenAI GPT-4 integration for personalized coaching
+- [ ] Advanced form analysis with specific feedback
+- [ ] Injury prevention recommendations
+- [ ] Custom workout plan generation
+
+### 🌍 **Phase 3 - Global Expansion** (Q2 2024)
+- [ ] Multi-language support
+- [ ] Additional weather data sources
+- [ ] Regional leaderboards
+- [ ] Mobile app development
+
+### 🔗 **Phase 4 - Cross-Chain** (Q3 2024)
+- [ ] Polygon integration
+- [ ] Ethereum L2 support
+- [ ] Cross-chain leaderboards
+- [ ] NFT achievement system
+
+## 📊 Technical Specifications
+
+### 🔧 **Frontend Stack**
+- **Framework**: Next.js 15 with Turbopack
+- **AI**: MediaPipe Pose Detection
+- **Blockchain**: ethers.js + MetaMask
+- **UI**: Tailwind CSS + React Components
+- **State**: React Hooks + Local Storage
+
+### ⛓️ **Blockchain Stack**
+- **Network**: Avalanche Fuji Testnet
+- **Language**: Solidity 0.8.19
+- **Tools**: Hardhat + Chainlink Functions
+- **Automation**: Chainlink Keepers
+- **Oracles**: Chainlink Price Feeds
+
+### 🌐 **Weather Integration**
+- **Primary**: WeatherAPI.com REST API
+- **Premium**: WeatherXM Pro API
+- **Caching**: In-memory with 30-minute TTL
+- **Fallback**: Seasonal simulation algorithms
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📄 License
 
 MIT License - Built for educational and hackathon purposes.
+
+## 🆘 Support
+
+- **Documentation**: Check `/docs` folder for detailed guides
+- **Issues**: Report bugs via GitHub Issues
+- **Discord**: Join our development community
+- **Email**: Contact team for urgent issues
+
+---
+
+**Built with ❤️ for the decentralized fitness revolution**
+
+*Combining cutting-edge AI, real-time weather data, and blockchain technology to create the future of fitness.*
