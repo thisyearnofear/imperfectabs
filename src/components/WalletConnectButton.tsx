@@ -190,9 +190,11 @@ export default function WalletConnectButton({
             <button
               onClick={() => handleConnect("walletconnect")}
               disabled={isConnecting}
-              className="w-full abs-btn-primary bg-blue-600 text-white text-sm py-2 px-3"
+              className="w-full abs-btn-primary bg-blue-600 text-white text-xs py-2 px-3"
             >
-              🔗 WALLETCONNECT
+              🔗 WALLET
+              <br />
+              CONNECT
             </button>
           </div>
         </div>
@@ -246,9 +248,11 @@ export default function WalletConnectButton({
               <button
                 onClick={() => handleConnect("walletconnect")}
                 disabled={isConnecting}
-                className="w-full abs-btn-primary bg-blue-600 text-white text-sm py-2 px-3"
+                className="w-full abs-btn-primary bg-blue-600 text-white text-xs py-2 px-3"
               >
-                🔗 WALLETCONNECT
+                🔗 WALLET
+                <br />
+                CONNECT
               </button>
             </div>
           </div>

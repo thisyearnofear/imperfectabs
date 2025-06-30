@@ -58,6 +58,10 @@ export const LEADERBOARD_ABI = [
   "event RewardClaimed(address indexed user, uint256 amount)",
   "event RewardPoolUpdated(uint256 newTotal)",
   "event RewardDistributionExecuted(uint256 totalDistributed, uint256 topPerformersCount)",
+
+  // Cross-chain (CCIP) functions
+  "function crossChainData(address user) external view returns (uint128 polygonScore, uint128 baseScore, uint128 celoScore, uint128 monadScore)",
+  "function getCompositeScore(address user) external view returns (uint256)",
 ] as const;
 
 // TypeScript interfaces
@@ -778,13 +782,34 @@ export class ImperfectAbsContract {
   }
 
   async getLastWeatherUpdate(): Promise<number> {
+    if (!this.contract) throw new Error("Contract not initialized");
     try {
-      if (!this.contract) return 0;
-      const timestamp = await this.contract.lastWeatherUpdate();
+      const timestamp = await this.contract.getLastWeatherUpdate();
       return timestamp.toNumber();
     } catch (error) {
       console.error("Error getting last weather update:", error);
-      return 0;
+      throw this.parseContractError(error);
+    }
+  }
+
+  async getCrossChainData(userAddress: string): Promise<{
+    polygonScore: number;
+    baseScore: number;
+    celoScore: number;
+    monadScore: number;
+  }> {
+    if (!this.contract) throw new Error("Contract not initialized");
+    try {
+      const result = await this.contract.crossChainData(userAddress);
+      return {
+        polygonScore: result.polygonScore.toNumber(),
+        baseScore: result.baseScore.toNumber(),
+        celoScore: result.celoScore.toNumber(),
+        monadScore: result.monadScore.toNumber(),
+      };
+    } catch (error) {
+      console.error("Error getting cross-chain data:", error);
+      throw this.parseContractError(error);
     }
   }
 }

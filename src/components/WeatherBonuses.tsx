@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import {
   CONTRACT_ABI,
@@ -82,6 +82,8 @@ export default function WeatherBonuses({ isConnected }: WeatherBonusesProps) {
   const [testingConnection, setTestingConnection] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [isFetching, setIsFetching] = useState(false);
+  const lastFetchTimeRef = useRef<number>(0);
+  const weatherDataRef = useRef<RegionalWeatherData>({});
 
   const testApiConnection = async () => {
     setTestingConnection(true);
@@ -253,13 +255,13 @@ export default function WeatherBonuses({ isConnected }: WeatherBonusesProps) {
 
       // Check if we recently fetched data (avoid unnecessary API calls)
       const now = Date.now();
-      const timeSinceLastFetch = now - lastFetchTime;
+      const timeSinceLastFetch = now - lastFetchTimeRef.current;
       const cacheTimeout = 30 * 60 * 1000; // 30 minutes
 
       if (
         useRealWeather &&
         timeSinceLastFetch < cacheTimeout &&
-        Object.keys(weatherData).length > 0
+        Object.keys(weatherDataRef.current).length > 0
       ) {
         console.log("Using cached weather data, skipping API calls");
         setLoading(false);
@@ -274,6 +276,7 @@ export default function WeatherBonuses({ isConnected }: WeatherBonusesProps) {
         // Fetch real weather data from WeatherXM
         try {
           console.log("Fetching real weather data...");
+          lastFetchTimeRef.current = now;
           setLastFetchTime(now);
           const locations = await weatherXM.getMultiLocationWeather();
           const weatherMap: RegionalWeatherData = {};
@@ -284,6 +287,7 @@ export default function WeatherBonuses({ isConnected }: WeatherBonusesProps) {
             console.log(`Weather for ${location.location}:`, location);
           });
 
+          weatherDataRef.current = weatherMap;
           setWeatherData(weatherMap);
 
           // Build seasonal bonuses (simulated based on current month)

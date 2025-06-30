@@ -9,6 +9,10 @@ import {
   formatTimestamp,
 } from "../lib/contractIntegration";
 import { ethers } from "ethers";
+import {
+  crossChainService,
+  type CrossChainData,
+} from "../services/crossChainService";
 
 interface LeaderboardEntry {
   id: string;
@@ -21,6 +25,7 @@ interface LeaderboardEntry {
   lastActive: Date;
   score: number;
   compositeScore: number;
+  crossChainData?: CrossChainData;
 }
 
 interface LeaderboardProps {
@@ -43,6 +48,19 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [, setLastRefresh] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
+  const [crossChainStatus, setCrossChainStatus] = useState<{
+    loading: boolean;
+    loadedUsers: number;
+    totalUsers: number;
+    cacheStats?: {
+      size: number;
+      fresh: number;
+      stale: number;
+      activeFetches: number;
+      entries: string[];
+    };
+  }>({ loading: false, loadedUsers: 0, totalUsers: 0 });
 
   // Get all unique addresses for batch ENS resolution
   const addresses = leaderboardData.map((entry) => entry.walletAddress);
@@ -69,7 +87,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
       // Load leaderboard data from blockchain
       const rawLeaderboard = await imperfectAbsContract.getLeaderboard(50); // Top 50
 
-      // Convert blockchain data to UI format
+      // Convert blockchain data to UI format first
       const formattedData: LeaderboardEntry[] = await Promise.all(
         rawLeaderboard.map(async (entry: AbsScore) => {
           // Calculate composite score for ranking
@@ -90,12 +108,51 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
             lastActive: new Date(entry.timestamp * 1000),
             score: entry.totalReps, // Simple score for display
             compositeScore,
+            crossChainData: undefined, // Will be populated for top 3 only
           };
         })
       );
 
-      // Sort by composite score descending
+      // Sort by composite score descending first
       formattedData.sort((a, b) => b.compositeScore - a.compositeScore);
+
+      // Fetch cross-chain data only for top 3 users to avoid overloading services
+      if (formattedData.length > 0) {
+        const top3Users = formattedData
+          .slice(0, 3)
+          .map((entry) => entry.walletAddress);
+        console.log(`🔍 Fetching cross-chain data for top 3 users:`, top3Users);
+
+        setCrossChainStatus({
+          loading: true,
+          loadedUsers: 0,
+          totalUsers: top3Users.length,
+        });
+
+        const crossChainDataMap =
+          await crossChainService.getBatchCrossChainData(top3Users);
+
+        setCrossChainStatus({
+          loading: false,
+          loadedUsers: crossChainDataMap.size,
+          totalUsers: top3Users.length,
+          cacheStats: crossChainService.getCacheStats(),
+        });
+
+        // Apply cross-chain data to top 3 users
+        for (let i = 0; i < Math.min(3, formattedData.length); i++) {
+          const entry = formattedData[i];
+          const crossChainData = crossChainDataMap.get(
+            entry.walletAddress.toLowerCase()
+          );
+          if (crossChainData) {
+            entry.crossChainData = crossChainData;
+            console.log(
+              `✅ Cross-chain data loaded for ${entry.walletAddress}: ${crossChainData.activeChains} chains, ${crossChainData.totalCrossChain} total points`
+            );
+          }
+        }
+      }
 
       setLeaderboardData(formattedData);
       setLastRefresh(new Date());
@@ -113,6 +170,7 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]); // Only depend on isConnected, not the function
 
+  // Auto-refresh every 30 seconds
   // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -244,6 +302,28 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
         </div>
       ) : (
         <>
+          {/* Cross-chain Status (Development) */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="abs-card-brutal bg-purple-100 text-black mb-4 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="font-bold">
+                  🔗 Cross-Chain Status:{" "}
+                  {crossChainStatus.loading ? "Loading..." : "Ready"}
+                </span>
+                <span>
+                  {crossChainStatus.loadedUsers}/{crossChainStatus.totalUsers}{" "}
+                  users loaded
+                  {crossChainStatus.cacheStats && (
+                    <span className="ml-2 text-xs text-gray-600">
+                      (Cache: {crossChainStatus.cacheStats.fresh} fresh,{" "}
+                      {crossChainStatus.cacheStats.stale} stale)
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Leaderboard Table */}
           <div className="overflow-x-auto abs-card-brutal bg-white">
             <table className="w-full font-mono">
@@ -332,18 +412,97 @@ export default function Leaderboard({ currentUserStats }: LeaderboardProps) {
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <div>
-                            <ENSDisplay
-                              address={entry.walletAddress}
-                              className="font-black text-black uppercase"
-                              showAvatar={true}
-                              maxLength={20}
-                            />
+                          <div className="relative">
+                            <div className="flex items-center">
+                              <ENSDisplay
+                                address={entry.walletAddress}
+                                className="font-black text-black uppercase"
+                                showAvatar={true}
+                                maxLength={20}
+                              />
+                              {entry.crossChainData &&
+                                entry.crossChainData.activeChains > 1 && (
+                                  <span
+                                    className="ml-2 px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold rounded border-2 border-black cursor-help"
+                                    onMouseEnter={() =>
+                                      setHoveredEntry(entry.id)
+                                    }
+                                    onMouseLeave={() => setHoveredEntry(null)}
+                                  >
+                                    🌐 Multi
+                                  </span>
+                                )}
+                            </div>
                             <div className="text-xs text-gray-500 mt-1">
                               {formatTimestamp(
                                 entry.lastActive.getTime() / 1000
                               )}
                             </div>
+
+                            {/* Cross-chain tooltip */}
+                            {hoveredEntry === entry.id &&
+                              entry.crossChainData && (
+                                <div className="absolute z-50 left-0 top-full mt-2 bg-black text-white p-3 rounded border-2 border-purple-500 shadow-lg min-w-64">
+                                  <div className="text-sm font-bold mb-2 text-purple-300">
+                                    🌐 Cross-Chain Score Breakdown
+                                  </div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span>🔴 Avalanche:</span>
+                                      <span className="font-bold">
+                                        {entry.compositeScore -
+                                          entry.crossChainData
+                                            .totalCrossChain}{" "}
+                                        pts
+                                      </span>
+                                    </div>
+                                    {entry.crossChainData.scoreBreakdown.map(
+                                      (score) => (
+                                        <div
+                                          key={score.network}
+                                          className="flex justify-between"
+                                        >
+                                          <span style={{ color: score.color }}>
+                                            {score.icon} {score.networkName}:
+                                          </span>
+                                          <span className="font-bold">
+                                            {score.total} pts ({score.pushups}p
+                                            + {score.squats}s)
+                                          </span>
+                                        </div>
+                                      )
+                                    )}
+                                    <div className="border-t border-purple-500 pt-2 mt-2">
+                                      <div className="flex justify-between">
+                                        <span>🚀 Multi-Chain Bonus:</span>
+                                        <span className="font-bold text-green-400">
+                                          +
+                                          {entry.crossChainData.multiChainBonus}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>📊 Active Chains:</span>
+                                        <span className="font-bold text-blue-400">
+                                          {entry.crossChainData.activeChains}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>⏰ Last Updated:</span>
+                                        <span className="font-bold text-gray-300">
+                                          {new Date(
+                                            entry.crossChainData.lastUpdated
+                                          ).toLocaleTimeString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-2 italic">
+                                    🔗 Powered by Chainlink CCIP - Real-time
+                                    cross-chain data
+                                  </div>
+                                </div>
+                              )}
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
